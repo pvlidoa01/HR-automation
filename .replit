@@ -1,0 +1,14 @@
+modules = ["nodejs-22", "postgresql-16"]
+run = "npm start"
+
+[nix]
+channel = "stable-24_05"
+
+[deployment]
+deploymentTarget = "autoscale"
+run = ["sh", "-c", "npm start"]
+build = ["sh", "-c", "npm ci --omit=dev"]
+
+[[ports]]
+localPort = 3000
+externalPort = 80

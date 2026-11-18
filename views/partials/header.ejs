@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title><%= title %> · R3 Performance Review</title>
+  <link rel="stylesheet" href="/static/css/app.css">
+</head>
+<body>
+<% if (testMode) { %>
+  <div class="testbar">Test mode: anyone can sign in as anyone. Use test data only.</div>
+<% } %>
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="/">R3 <span>Performance Review</span></a>
+    <% if (user) { const nav = locals.nav || {}; %>
+      <nav class="nav">
+        <a href="/" class="<%= path === '/' ? 'active' : '' %>">Home</a>
+        <a href="/me" class="<%= path === '/me' ? 'active' : '' %>">My reviews</a>
+        <% if (nav.team) { %><a href="/team" class="<%= path === '/team' ? 'active' : '' %>">My team</a><% } %>
+        <% if (nav.department) { %><a href="/department" class="<%= path === '/department' ? 'active' : '' %>">My department</a><% } %>
+        <% if (nav.hr) { %><a href="/hr" class="<%= path.startsWith('/hr') || path.startsWith('/cycles') ? 'active' : '' %>">HR</a><% } %>
+      </nav>
+      <div class="who">
+        <span><%= user.name %></span>
+        <form method="post" action="/logout"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="btn small" type="submit">Sign out</button></form>
+      </div>
+    <% } %>
+  </div>
+</header>
+<main>
+<% if (flash) { %>
+  <div class="flash <%= flash.type %>" role="status"><%= flash.message %></div>
+<% } %>

@@ -1,0 +1,140 @@
+<%- include('partials/header') %>
+<div class="page-head">
+  <div>
+    <h1><%= cycle.name %> <span class="badge cycle-<%= cycle.status %>"><%= { open: 'Open', released: 'Released' }[cycle.status] %></span></h1>
+    <p class="muted">
+      <% if (cycle.deadline) { %>Deadline <%= fmtDate(cycle.deadline) %> · <% } %>
+      <%= submitted %> of <%= rows.length %> reviews submitted
+      <% if (cycle.released_at) { %> · released <%= fmtDate(cycle.released_at) %><% } %>
+    </p>
+  </div>
+  <% if (isHrUser) { %><a class="btn" href="/hr">All cycles</a><% } %>
+</div>
+
+<% if (cycle.status === 'open') { %>
+  <div class="grid">
+    <div class="card">
+      <h3>Progress</h3>
+      <div class="stat"><%= rows.length ? Math.round(submitted / rows.length * 100) : 0 %>%</div>
+      <div class="progress" style="margin:8px 0"><span style="width:<%= rows.length ? Math.round(submitted / rows.length * 100) : 0 %>%"></span></div>
+      <p class="muted small"><%= rows.length - submitted %> review(s) still to submit.</p>
+    </div>
+    <% if (isHrUser) { %>
+      <div class="card">
+        <h3>Release to employees</h3>
+        <% if (submitted === rows.length && rows.length) { %>
+          <p class="small">All reviews are submitted. Releasing shows every employee their review at the same time. It can't be undone.</p>
+          <form method="post" action="/hr/cycles/<%= cycle.id %>/release">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <label class="small" style="font-weight:400"><input type="checkbox" name="confirm" value="yes"> I have finished calibration</label>
+            <button class="btn primary" type="submit" style="margin-top:8px">Release all reviews</button>
+          </form>
+        <% } else { %>
+          <p class="small muted">Available once every review is submitted. You can still edit reviews after that, until you release.</p>
+          <button class="btn" disabled>Release all reviews</button>
+        <% } %>
+      </div>
+    <% } %>
+  </div>
+
+  <h2>Managers</h2>
+  <div class="card table-wrap" style="padding:0">
+    <table>
+      <thead><tr><th>Manager</th><th>Reviews</th><th>Not started</th><th>In progress</th><th>Submitted</th><th style="width:160px">Done</th></tr></thead>
+      <tbody>
+        <% managers.forEach(m => { %>
+          <tr>
+            <td><strong><%= m.name %></strong><br><span class="muted small"><%= m.email %></span></td>
+            <td><%= m.total %></td>
+            <td><%= m.not_started %></td>
+            <td><%= m.draft %></td>
+            <td><%= m.submitted %></td>
+            <td><div class="progress"><span style="width:<%= Math.round(m.submitted / m.total * 100) %>%"></span></div></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+<% } %>
+
+<h2>Reviews</h2>
+<div class="card table-wrap" style="padding:0">
+  <table>
+    <thead><tr><th>Employee</th><th>Department</th><th>Seniority</th><th>Reviewer</th><th>Status</th><th>Overall</th><th></th></tr></thead>
+    <tbody>
+      <% rows.forEach(r => { %>
+        <tr>
+          <td><strong><%= r.employee_name %></strong><br><span class="muted small"><%= r.position %></span></td>
+          <td><%= r.department %></td>
+          <td><%= r.seniority %></td>
+          <td><%= r.reviewer_name %></td>
+          <td>
+            <span class="badge status-<%= r.status %>"><%= STATUS_LABELS[r.status] %></span>
+            <% if (cycle.status === 'released') { %><br><span class="muted small"><%= r.employee_read_at ? 'Read ' + fmtDate(r.employee_read_at) : 'Not read yet' %></span><% } %>
+          </td>
+          <td><% if (r.isOwnHidden) { %><span class="muted small">Your own review</span><% } else { %><%- include('partials/grade', { code: r.grades.overall }) %><% } %></td>
+          <td>
+            <% if (!r.isOwnHidden) { %><a class="btn small" href="/reviews/<%= r.id %>">Open</a><% } %>
+            <% if (isHrUser && cycle.status === 'open' && r.status !== 'submitted') { %>
+              <details style="margin-top:6px">
+                <summary class="small">Change reviewer / remove</summary>
+                <form method="post" action="/hr/reviews/<%= r.id %>/reassign" style="margin-top:6px">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                  <input type="text" name="reviewerName" placeholder="New reviewer name" required>
+                  <input type="email" name="reviewerEmail" placeholder="New reviewer email" required style="margin-top:4px">
+                  <button class="btn small" type="submit" style="margin-top:4px">Change reviewer</button>
+                </form>
+                <form method="post" action="/hr/reviews/<%= r.id %>/remove" style="margin-top:6px">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                  <button class="btn small danger" type="submit">Remove from cycle</button>
+                </form>
+              </details>
+            <% } %>
+          </td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+</div>
+
+<% if (isHrUser && cycle.status === 'open') { %>
+  <h2 id="add">Add a late joiner</h2>
+  <div class="card">
+    <form method="post" action="/hr/cycles/<%= cycle.id %>/add">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <div class="form-grid">
+        <div class="field"><label>Employee name</label><input type="text" name="employeeName" required></div>
+        <div class="field"><label>Employee email</label><input type="email" name="employeeEmail" required></div>
+        <div class="field"><label>Department</label>
+          <input type="text" name="department" list="dept-list" required>
+          <datalist id="dept-list"><% departments.forEach(d => { %><option value="<%= d.name %>"><% }) %></datalist>
+        </div>
+        <div class="field"><label>Position</label><input type="text" name="position" required></div>
+        <div class="field"><label>Seniority</label>
+          <select name="seniority" required><option value=""></option><% SENIORITIES.forEach(s => { %><option><%= s %></option><% }) %></select>
+        </div>
+        <div class="field"><label>Reviewer name</label><input type="text" name="reviewerName" required></div>
+        <div class="field"><label>Reviewer email</label><input type="email" name="reviewerEmail" required></div>
+        <% [1, 2, 3].forEach(n => { %>
+          <div class="field"><label>Skill <%= n %></label>
+            <select name="skill<%= n %>" required><option value=""></option><% skills.forEach(s => { %><option><%= s.name %></option><% }) %></select>
+          </div>
+        <% }) %>
+      </div>
+      <button class="btn primary" type="submit">Add to cycle</button>
+    </form>
+  </div>
+<% } %>
+
+<h2>Departments</h2>
+<div class="card table-wrap" style="padding:0">
+  <table>
+    <thead><tr><th>Department</th><th>Head</th></tr></thead>
+    <tbody>
+      <% departments.forEach(d => { %>
+        <tr><td><%= d.name %></td><td><%= d.head_name ? `${d.head_name} (${d.head_email})` : '—' %></td></tr>
+      <% }) %>
+    </tbody>
+  </table>
+</div>
+<%- include('partials/footer') %>

@@ -1,0 +1,24 @@
+<%- include('partials/header') %>
+<div class="page-head"><div><h1>My reviews</h1><p class="muted">Your reviews from every cycle, once HR has released them.</p></div></div>
+<% if (!rows.length) { %>
+  <div class="card empty">No released reviews yet.</div>
+<% } else { %>
+  <div class="card table-wrap" style="padding:0">
+    <table>
+      <thead><tr><th>Cycle</th><th>Position</th><th>Seniority</th><th>Reviewer</th><th>Overall</th><th></th></tr></thead>
+      <tbody>
+        <% rows.forEach(r => { %>
+          <tr>
+            <td><%= r.cycle_name %></td>
+            <td><%= r.position %></td>
+            <td><%= r.seniority %></td>
+            <td><%= r.reviewer_name %></td>
+            <td><%- include('partials/grade', { code: r.grades.overall }) %></td>
+            <td><a class="btn small" href="/reviews/<%= r.id %>">Open</a><% if (!r.employee_read_at) { %> <span class="badge status-draft">New</span><% } %></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+<% } %>
+<%- include('partials/footer') %>

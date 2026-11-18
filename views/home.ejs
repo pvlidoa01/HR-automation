@@ -1,0 +1,74 @@
+<%- include('partials/header') %>
+<div class="page-head">
+  <div>
+    <h1>Hello <%= user.name.split(' ')[0] %></h1>
+    <p class="muted">Here is what needs your attention.</p>
+  </div>
+</div>
+
+<% if (openTeam.length) { %>
+  <% openTeam.forEach(g => { %>
+    <div class="card">
+      <h3>Reviews to write · <%= g.name %></h3>
+      <% if (g.todo) { %>
+        <p><strong><%= g.todo %></strong> of <%= g.total %> reviews still to submit<% if (g.deadline) { %>, due <strong><%= fmtDate(g.deadline) %></strong><% } %>.</p>
+      <% } else { %>
+        <p>All <%= g.total %> reviews submitted. HR will now calibrate them.</p>
+      <% } %>
+      <a class="btn primary" href="/team">Open my team</a>
+    </div>
+  <% }) %>
+<% } %>
+
+<% if (cycles.length) { %>
+  <div class="card">
+    <div class="btn-row" style="justify-content:space-between">
+      <h3>Review cycles</h3>
+      <% if (user.global_role === 'hr_admin') { %><a class="btn small" href="/hr">Manage cycles</a><% } %>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Cycle</th><th>Status</th><th>Deadline</th></tr></thead>
+        <tbody>
+          <% cycles.forEach(c => { %>
+            <tr>
+              <td><a href="/cycles/<%= c.id %>"><%= c.name %></a></td>
+              <td><span class="badge cycle-<%= c.status %>"><%= { setup: 'Being set up', open: 'Open', released: 'Released' }[c.status] %></span></td>
+              <td><%= fmtDate(c.deadline) %></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+<% } %>
+
+<div class="grid">
+  <div class="card">
+    <h3>My reviews</h3>
+    <% if (mine.length) { %>
+      <ul>
+        <% mine.forEach(m => { %>
+          <li><a href="/reviews/<%= m.id %>"><%= m.cycle_name %></a><% if (!m.employee_read_at) { %> <span class="badge status-draft">New</span><% } %></li>
+        <% }) %>
+      </ul>
+    <% } else { %>
+      <p class="muted">Your reviews appear here once HR releases them.</p>
+    <% } %>
+  </div>
+  <% if (hasTeamHistory && !openTeam.length) { %>
+    <div class="card">
+      <h3>My team</h3>
+      <p class="muted">Reviews you wrote in past cycles.</p>
+      <a class="btn" href="/team">Open my team</a>
+    </div>
+  <% } %>
+  <% if (heads.length) { %>
+    <div class="card">
+      <h3>My department</h3>
+      <p class="muted">You are department head for <%= [...new Set(heads.map(h => h.name))].join(', ') %>.</p>
+      <a class="btn" href="/department">Open my department</a>
+    </div>
+  <% } %>
+</div>
+<%- include('partials/footer') %>

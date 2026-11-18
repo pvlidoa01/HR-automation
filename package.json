@@ -1,0 +1,33 @@
+{
+  "name": "r3-performance-review",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Performance review cycles for R3 Robotics: HR sets up a cycle, managers review their reports, HR calibrates and releases, employees see their own results.",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node src/migrate.js && node src/server.js",
+    "dev": "node src/migrate.js && node --watch src/server.js",
+    "migrate": "node src/migrate.js",
+    "demo": "node src/migrate.js && node scripts/demo-data.js",
+    "template": "node scripts/make-template.js",
+    "test": "node --test --test-concurrency=1 test/*.test.js",
+    "demo:remove": "node scripts/remove-demo.js"
+  },
+  "dependencies": {
+    "connect-pg-simple": "^10.0.0",
+    "ejs": "^7.0.2",
+    "exceljs": "^4.4.0",
+    "express": "^5.3.0",
+    "express-session": "^1.19.0",
+    "helmet": "^8.3.0",
+    "multer": "^2.5.0",
+    "openid-client": "^5.7.1",
+    "pg": "^8.23.1"
+  },
+  "devDependencies": {
+    "supertest": "^7.3.1"
+  }
+}

@@ -1,0 +1,40 @@
+<%- include('partials/header') %>
+<div class="page-head"><div><h1>My team</h1><p class="muted">The people you review. HR and the CEO can read your reviews; your department head can read them once you submit. Employees see theirs only after HR releases the cycle, and never the HR action points.</p></div></div>
+<% if (!groups.length) { %>
+  <div class="card empty">You have no reviews to write.</div>
+<% } %>
+<% groups.forEach(g => { %>
+  <h2><%= g.name %> <span class="badge cycle-<%= g.status %>"><%= { open: 'Open', released: 'Released' }[g.status] %></span>
+    <% if (g.deadline && g.status === 'open') { %><span class="muted small">· due <%= fmtDate(g.deadline) %></span><% } %></h2>
+  <div class="card table-wrap" style="padding:0">
+    <table>
+      <thead><tr><th>Employee</th><th>Position</th><th>Seniority</th><th>Status</th><th>Overall</th><th></th></tr></thead>
+      <tbody>
+        <% g.reviews.forEach(r => { %>
+          <tr>
+            <td><strong><%= r.employee_name %></strong><br><span class="muted small"><%= r.department %></span></td>
+            <td><%= r.position %></td>
+            <td><%= r.seniority %></td>
+            <td><span class="badge status-<%= r.status %>"><%= STATUS_LABELS[r.status] %></span></td>
+            <td><%- include('partials/grade', { code: r.grades.overall }) %></td>
+            <td>
+              <a class="btn small <%= g.status === 'open' && r.status !== 'submitted' ? 'primary' : '' %>" href="/reviews/<%= r.id %>">
+                <%= g.status === 'open' && r.status !== 'submitted' ? (r.status === 'not_started' ? 'Start review' : 'Continue') : 'View' %>
+              </a>
+            </td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+<% }) %>
+<% if (earlier.length) { %>
+  <h2>Earlier reviews of your team</h2>
+  <p class="muted small">Reviews written by their previous managers. You can read them but not change them.</p>
+  <div class="card">
+    <ul>
+      <% earlier.forEach(e => { %><li><a href="/reviews/<%= e.id %>"><%= e.employee_name %> · <%= e.cycle_name %></a></li><% }) %>
+    </ul>
+  </div>
+<% } %>
+<%- include('partials/footer') %>

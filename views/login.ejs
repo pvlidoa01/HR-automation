@@ -1,0 +1,32 @@
+<%- include('partials/header') %>
+<div class="login-box">
+  <div class="card">
+    <h1>Sign in</h1>
+    <p class="muted">Performance reviews for R3 Robotics.</p>
+    <% if (error) { %><div class="notice error"><%= error %></div><% } %>
+    <% if (microsoftEnabled) { %>
+      <a class="btn primary" href="/auth/microsoft">Sign in with Microsoft</a>
+    <% } else if (!testMode) { %>
+      <p class="notice warn">Sign-in is not set up yet. Ask the app owner.</p>
+    <% } %>
+  </div>
+  <% if (testMode) { %>
+    <div class="card">
+      <h3>Test login</h3>
+      <p class="muted small">Only while building and testing. Pick anyone to see the app as they would.</p>
+      <form method="post" action="/login/test" class="inline-form">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <div class="field" style="flex:1">
+          <label for="email">Sign in as</label>
+          <select id="email" name="email">
+            <% users.forEach(u => { %>
+              <option value="<%= u.email %>"><%= u.name %> (<%= u.email %>)<%= u.global_role === 'hr_admin' ? ' · HR' : u.global_role === 'viewer_all' ? ' · sees all' : '' %></option>
+            <% }) %>
+          </select>
+        </div>
+        <button class="btn primary" type="submit">Sign in</button>
+      </form>
+    </div>
+  <% } %>
+</div>
+<%- include('partials/footer') %>

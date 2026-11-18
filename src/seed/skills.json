@@ -1,0 +1,584 @@
+[
+  {
+    "name": "System Design & Integration",
+    "draft": false,
+    "functionalLeader": "AM",
+    "notionUrl": "https://app.notion.com/p/1fbc1d7015dc80089a4dc09b8a5d163e",
+    "definition": null,
+    "levels": {
+      "POOR": [
+        "Struggles to design systems or integrate components effectively."
+      ],
+      "BASIC": [
+        "Can design simple components (software modules, control circuits, etc.) following known patterns.",
+        "Integrates basic software, hardware, and vision system components with support."
+      ],
+      "INTERMEDIATE": [
+        "Independently designs and integrates multi-component solutions (e.g., PLC + Robot + Vision).",
+        "Anticipates integration challenges and designs for modularity and scalability."
+      ],
+      "ADVANCED": [
+        "Leads complex system design initiatives involving multiple technologies and stakeholders.",
+        "Develops reusable frameworks or architectures that increase system robustness and speed up future developments."
+      ],
+      "EXCEPTIONAL": [
+        "Creates new technical architectures or integrations that redefine how we build or run our automation systems."
+      ]
+    },
+    "notes": "definition callout empty"
+  },
+  {
+    "name": "Production Planning & Scheduling",
+    "draft": false,
+    "functionalLeader": "LI",
+    "notionUrl": "https://app.notion.com/p/1fbc1d7015dc8041a95cdfb81b25d8ea",
+    "definition": null,
+    "levels": {
+      "POOR": [
+        "No awareness of planning logic"
+      ],
+      "BASIC": [
+        "Understands work orders, lead times",
+        "Able to generate quality results following procedures in place",
+        "Recognizes some forms of waste"
+      ],
+      "INTERMEDIATE": [
+        "Plans batches with resource constraints",
+        "Collaborates on design for ergonomics/safety"
+      ],
+      "ADVANCED": [
+        "Understands full workflow, anticipates bottlenecks and upcoming needs",
+        "Consistently improves production KPI and delivers OKR on production speed, safety, and quality"
+      ],
+      "EXCEPTIONAL": [
+        "Creates adaptive systems to optimize throughput and minimize downtime",
+        "Implements Lean transformations with measurable ROI"
+      ]
+    },
+    "notes": "definition callout empty"
+  },
+  {
+    "name": "Analytical Prowess",
+    "draft": false,
+    "functionalLeader": "AW",
+    "notionUrl": "https://app.notion.com/p/1fbc1d7015dc804c9484fe9f4d94932a",
+    "definition": null,
+    "levels": {
+      "POOR": [
+        "Relies on intuition rather than data for decision making",
+        "Unable to break even basic problems into manageable components",
+        "Draws conclusions without sufficient supporting evidence",
+        "Fails to translate analysis into any 'so-what'"
+      ],
+      "BASIC": [
+        "Uses available data to inform decision making",
+        "Breaks down standard problems into key components",
+        "Selects and uses appropriate analytical tools for analyses",
+        "Creates logical action plans based on analytical findings"
+      ],
+      "INTERMEDIATE": [
+        "Proactively lists sources of insight and gathers relevant data from multiple sources",
+        "Structures complex problems into clear analytical frameworks and plain English",
+        "Identifies hidden patterns and relationships in data using advanced analytical tooling",
+        "Develops and executes data-driven action plans with clear metrics"
+      ],
+      "ADVANCED": [
+        "Designs comprehensive analytical approaches for ambiguous problems in unfamiliar fields",
+        "Master of hypothesis-driven thinking who creates sophisticated models that reveal underlying drivers",
+        "Transforms complex analyses into compelling strategic recommendations delivered in a clear manner"
+      ],
+      "EXCEPTIONAL": [
+        "Pioneers innovative analytical methodologies and tools that become company standard",
+        "Breaks seemingly intractable problems into solvable components",
+        "Uncovers transformational insights that reshape company strategy"
+      ]
+    },
+    "notes": "definition callout empty"
+  },
+  {
+    "name": "Project Management",
+    "draft": false,
+    "functionalLeader": "AW",
+    "notionUrl": "https://app.notion.com/p/1fbc1d7015dc8057abf7c8277730636b",
+    "definition": null,
+    "levels": {
+      "POOR": [
+        "Unable to prioritize work",
+        "Task tracking is not at professional level"
+      ],
+      "BASIC": [
+        "Able to prioritze own tasks effectively",
+        "Able to manage time effectively and meets deadlines",
+        "Communicates blockers and required input from other team members effectively",
+        "Can put a rough plan on paper and iterate effectively with others"
+      ],
+      "INTERMEDIATE": [
+        "Mitigates obvious risks effectively",
+        "Understands priority of projects based on highest impact and re-prioritzes proactively when circumstances change",
+        "Formulates, communicates progress and blockers clearly to other teams",
+        "Can structure and deliver projects of a small team or group of stakeholders"
+      ],
+      "ADVANCED": [
+        "Combines critical thinking with emotional intelligence to get people buy-in on project objectives",
+        "Mitigates non-obvious risks on-the-fly, balancing speed and risk mitigation",
+        "Can structure and deliver projects across different teams and large groups of stakeholders"
+      ],
+      "EXCEPTIONAL": [
+        "Able to persuade and negotiate to achieve project outcomes in face of adversity",
+        "Can structure and deliver company-critical projects with outsized impact"
+      ]
+    },
+    "notes": "definition callout empty"
+  },
+  {
+    "name": "Key Account Management",
+    "draft": false,
+    "functionalLeader": "AW",
+    "notionUrl": "https://app.notion.com/p/1fbc1d7015dc805d9644cb53e39ba256",
+    "definition": null,
+    "levels": {
+      "POOR": [
+        "Inability to maintain basic client relationships",
+        "Fails to understand client's business needs or priorities",
+        "Misses critical account information or deadlines",
+        "Reactive to client issues with no forward planning"
+      ],
+      "BASIC": [
+        "Maintains consistent communication with assigned accounts",
+        "Understands client's basic business needs and goals",
+        "Resolves standard issues in a timely manner"
+      ],
+      "INTERMEDIATE": [
+        "Develops strategic understanding of client's industry and challenges",
+        "Proactively identifies opportunities to add value for and to the account",
+        "Builds relationships with multiple stakeholders within client organization",
+        "Effectively manages client expectations and clearly communicates timelines"
+      ],
+      "ADVANCED": [
+        "Creates account strategies that align with both client and company objectives",
+        "Builds executive-level relationships that secure strategic positioning",
+        "Transforms account challenges into opportunities for deeper partnership",
+        "Successfully navigates complex stakeholder environments to drive growth"
+      ],
+      "EXCEPTIONAL": [
+        "Develops accounts into strategic partnerships that shape product direction",
+        "Creates innovative account solutions that become company best practices",
+        "Transforms challenging accounts into top-performing revenue relationships"
+      ]
+    },
+    "notes": "definition callout empty"
+  },
+  {
+    "name": "Product Development",
+    "draft": false,
+    "functionalLeader": "LI",
+    "notionUrl": "https://app.notion.com/p/1fbc1d7015dc8081b7b5c788e800f415",
+    "definition": null,
+    "levels": {
+      "POOR": [
+        "No concept of manufacturability",
+        "Ignores cost implications and impact on north star KPI on new designs"
+      ],
+      "BASIC": [
+        "Builds basic prototypes",
+        "Considers requirements from other functions and adapts to feedback in proposing designs"
+      ],
+      "INTERMEDIATE": [
+        "Drives design-for-manufacturing improvements and considers cost and performance implications in new designs",
+        "Writes test plans and runs complex test schedules"
+      ],
+      "ADVANCED": [
+        "Solves ambiguous design and manufacturing problems with creativity and with clear drive to improving north star KPI",
+        "Leads DFM (design for manufacturing) meetings, generates cost and time savings",
+        "Uses multi-physics analysis, correlates with real-world testing"
+      ],
+      "EXCEPTIONAL": [
+        "Leads integrated prototyping loops with cross-functional validation",
+        "Consistently develops systems that significantly expand capabilities while reducing complexity"
+      ]
+    },
+    "notes": "definition callout empty"
+  },
+  {
+    "name": "Lean/ Continuous Improvement",
+    "draft": false,
+    "functionalLeader": "LI",
+    "notionUrl": "https://app.notion.com/p/1fbc1d7015dc8082ae22d2fe7a17b380",
+    "definition": null,
+    "levels": {
+      "POOR": [
+        "Does not follow SOPs, delivers inconsistent operative results"
+      ],
+      "BASIC": [
+        "Follows checklists and SOPs",
+        "Delivers quality work in operations and implements fixes for basic bottlenecks in operations"
+      ],
+      "INTERMEDIATE": [
+        "Uses tools like 5S, Kaizen, Kanban",
+        "Understands quality KPIs, root cause analysis"
+      ],
+      "ADVANCED": [
+        "Balances capacity, demand, and supply chain inputs",
+        "Standardizes and controls revisions across operations"
+      ],
+      "EXCEPTIONAL": [
+        "Creates CI culture"
+      ]
+    },
+    "notes": "definition callout empty"
+  },
+  {
+    "name": "Supply Chain Communication & Collaboration",
+    "draft": false,
+    "functionalLeader": "LI",
+    "notionUrl": "https://app.notion.com/p/1fbc1d7015dc8089a01bff6d9dd3e814",
+    "definition": null,
+    "levels": {
+      "POOR": [
+        "Siloed, reactive in stakeholder management",
+        "Poor coordination of cross-functional collaborations"
+      ],
+      "BASIC": [
+        "Responds to requests within SLA's",
+        "Contributes to requirements creation",
+        "Shares data with stakeholders when asked"
+      ],
+      "INTERMEDIATE": [
+        "Collaborates with engineering, ops, and finance",
+        "Engages during development or production",
+        "Presents metrics and risks to management"
+      ],
+      "ADVANCED": [
+        "Coordinates end-to-end supply input during product lifecycle",
+        "Communicates trade-offs and scenarios clearly to leadership"
+      ],
+      "EXCEPTIONAL": [
+        "Builds strategic alliances; drives innovation and exclusivity through partnerships",
+        "Advises C-level stakeholders on supply-side opportunities, threats, and strategy"
+      ]
+    },
+    "notes": "definition callout empty; skipped 1 row(s) with empty behaviour cell (level: ADVANCED)"
+  },
+  {
+    "name": "Software & Hardware Development Quality",
+    "draft": false,
+    "functionalLeader": "AM",
+    "notionUrl": "https://app.notion.com/p/1fbc1d7015dc809c9898c1da4c114d35",
+    "definition": null,
+    "levels": {
+      "POOR": [
+        "Frequent bugs, wiring mistakes, or integration errors; little attention to best practices."
+      ],
+      "BASIC": [
+        "Delivers working code or systems for basic use cases following codeing best practices.",
+        "Uses basic validation techniques (e.g., simulation, peer reviews, electrical tests)."
+      ],
+      "INTERMEDIATE": [
+        "Implements robust, maintainable, and scalable code, circuits, and systems.",
+        "Proactively tests, validates, and documents work to ensure reliability."
+      ],
+      "ADVANCED": [
+        "Designs and implements high-quality solutions that withstand scaling and edge cases.",
+        "Embeds quality and safety thinking early in the development process."
+      ],
+      "EXCEPTIONAL": [
+        "Sets new benchmarks for software/hardware excellence that others adopt as standards."
+      ]
+    },
+    "notes": "definition callout empty"
+  },
+  {
+    "name": "Machine/ System Design",
+    "draft": false,
+    "functionalLeader": "LI",
+    "notionUrl": "https://app.notion.com/p/1fbc1d7015dc80ae811ce0531e12617b",
+    "definition": null,
+    "levels": {
+      "POOR": [
+        "Struggles to design components and sub-systems"
+      ],
+      "BASIC": [
+        "Can design simple components and sub-systems following clear specifications",
+        "Delivers requested designs on-time, within specifications , and escalates blockers",
+        "Documents designs to the expected specifications"
+      ],
+      "INTERMEDIATE": [
+        "Able to challenge and clarify specifications with internal stakeholders",
+        "Able to execute designs for sub-assemblies and entry level systems"
+      ],
+      "ADVANCED": [
+        "Able to generate design ideas based on own process considerations in alignment with business direction",
+        "Able to generate specifications from customer requirements"
+      ],
+      "EXCEPTIONAL": [
+        "Frequently develops and implements transformational designs for never-seen-before problems"
+      ]
+    },
+    "notes": "definition callout empty; skipped 2 row(s) with empty behaviour cell (level: (no level))"
+  },
+  {
+    "name": "Business Development",
+    "draft": false,
+    "functionalLeader": "AW",
+    "notionUrl": "https://app.notion.com/p/1fbc1d7015dc80b48ee3d57041f03748",
+    "definition": null,
+    "levels": {
+      "POOR": [
+        "Doesn't understand the market",
+        "Unable to prioritize leads"
+      ],
+      "BASIC": [
+        "Able to segment a market into broad segments",
+        "Engages leads actively, follows up most times",
+        "Can follow a sales playbook"
+      ],
+      "INTERMEDIATE": [
+        "Engages leads actively and follows up with diligence independently",
+        "Tests new ways to position existing portfolio systematically",
+        "Conducts systematic market research to identify gaps in product portfolio",
+        "Defines, tracks, and executes against the appropriate metrics to reach company goals"
+      ],
+      "ADVANCED": [
+        "Transmits new product ideas from conversations and market understanding to technical team",
+        "Independently comes up with new business ideas and tests hypotheses systematically",
+        "Can successfully identify target market and position new products",
+        "Manages multiple ambitious objectives in an effective way"
+      ],
+      "EXCEPTIONAL": [
+        "Opens up entirely new markets and partnerships that no-one had thought about before",
+        "Has deep understanding of the product, can spar with the tech teams, and position it with new partners",
+        "Is a thought-leader in the industry and transmits company vision effectively"
+      ]
+    },
+    "notes": "definition callout empty"
+  },
+  {
+    "name": "Problem Solving",
+    "draft": false,
+    "functionalLeader": "AW",
+    "notionUrl": "https://app.notion.com/p/1fbc1d7015dc80b5a026ec38752e5f89",
+    "definition": "Breaks problems down into its drivers,",
+    "levels": {
+      "POOR": [
+        "Demonstrates unstructured problem-solving, fails to identify root causes or address basic symptoms"
+      ],
+      "BASIC": [
+        "Shows common sense by recognizing false statements or assumptions",
+        "Can break down simple problems based on data and resolve them"
+      ],
+      "INTERMEDIATE": [
+        "Identifies errors in seemingly correct statements or assumptions by applying critical thinking",
+        "Delves into complex problems into its drivers until reaching a deep understanding",
+        "Independently drives down a driver tree to identify issues and develop results"
+      ],
+      "ADVANCED": [
+        "Can synthesize a solution and connect issues that might not seem relevant at first",
+        "Approaches problem solving in an innovative way"
+      ],
+      "EXCEPTIONAL": [
+        "Engages in abstract thinking and can solve challenging problems by applying various advanced scientific methods"
+      ]
+    },
+    "notes": "skipped 1 row(s) with empty behaviour cell (level: (no level)); definition ends with a trailing comma and may be incomplete"
+  },
+  {
+    "name": "Financial Planning & Analysis",
+    "draft": false,
+    "functionalLeader": "AW",
+    "notionUrl": "https://app.notion.com/p/1fbc1d7015dc80c1bc4ec2a72ec4c9d4",
+    "definition": null,
+    "levels": {
+      "POOR": [
+        "Cannot read basic financial statements accurately",
+        "Makes fundamental errors in calculations or interpretation",
+        "Fails to connect financial data to business decisions"
+      ],
+      "BASIC": [
+        "Understands core financial statements and metrics",
+        "Performs accurate financial calculations and basic analysis with attention to detail",
+        "Identifies obvious financial trends and variances",
+        "Links relevant financial data to business decisions taken"
+      ],
+      "INTERMEDIATE": [
+        "Develops insightful financial models for business scenarios",
+        "Performs nuanced financial analyses that can be adopted without significant reviews",
+        "Identifies subtle financial risks and recommends mitigations",
+        "Translates complex financial concepts for non-financial stakeholders"
+      ],
+      "ADVANCED": [
+        "Creates sophisticated financial models that drive strategic decisions",
+        "Synthesizes diverse financial and operational data into actionable insights",
+        "Proactively identifies financial optimization opportunities across departments",
+        "Develops financial strategies that enhance competitive positioning and cash position"
+      ],
+      "EXCEPTIONAL": [
+        "Pioneers innovative financial approaches that transform business models",
+        "Identifies breakthrough financing strategies that enable company acceleration",
+        "Develops financial solutions that solve complex challenges for our customers"
+      ]
+    },
+    "notes": "definition callout empty"
+  },
+  {
+    "name": "Process Knowledge",
+    "draft": false,
+    "functionalLeader": "LI",
+    "notionUrl": "https://app.notion.com/p/1fbc1d7015dc80cd802fc804e8d55e48",
+    "definition": null,
+    "levels": {
+      "POOR": [
+        "Limited awareness of processes"
+      ],
+      "BASIC": [
+        "Understands basic workflows",
+        "Understands basic jigs, fixtures"
+      ],
+      "INTERMEDIATE": [
+        "Can map process flows, identify inefficiencies",
+        "Uses tools like 5S, Kaizen, Kanban in process design and monitoring",
+        "Collaborates on design for ergonomics/safety"
+      ],
+      "ADVANCED": [
+        "Drives tooling projects to improve cycle time and accuracy",
+        "Standardizes and controls revisions across operations"
+      ],
+      "EXCEPTIONAL": [
+        "Redesigns and scales operations across lines/sites with measurable impact"
+      ]
+    },
+    "notes": "definition callout empty"
+  },
+  {
+    "name": "Procurement",
+    "draft": false,
+    "functionalLeader": "LI",
+    "notionUrl": "https://app.notion.com/p/1fbc1d7015dc80d39b9bd97570f79d34",
+    "definition": null,
+    "levels": {
+      "POOR": [
+        "Relies on existing vendors"
+      ],
+      "BASIC": [
+        "Searches vendors, continuously increasing vendor portfolio",
+        "Seeks discounts and compares quotes as standard process"
+      ],
+      "INTERMEDIATE": [
+        "Conducts market research, compares options",
+        "Negotiates terms, price, delivery",
+        "Prepares clear specs, evaluates based on multiple criteria"
+      ],
+      "ADVANCED": [
+        "Identifies cost drivers, initiates cost-saving projects",
+        "Builds sourcing strategies by region, risk, tech"
+      ],
+      "EXCEPTIONAL": [
+        "Develops supply ecosystems, builds long-term co-development relationships"
+      ]
+    },
+    "notes": "definition callout empty"
+  },
+  {
+    "name": "Quality, Risk & Compliance",
+    "draft": false,
+    "functionalLeader": "LI",
+    "notionUrl": "https://app.notion.com/p/1fbc1d7015dc80f687f1db7a428aca35",
+    "definition": null,
+    "levels": {
+      "POOR": [
+        "Doesn't assess quality"
+      ],
+      "BASIC": [
+        "Asks for ISO certs or past records",
+        "Flags urgent issues reactively"
+      ],
+      "INTERMEDIATE": [
+        "Tracks lead times, flags single-source dependencies",
+        "Tracks metrics (OTD, quality, responsiveness) related to supplier performance"
+      ],
+      "ADVANCED": [
+        "Develops supplier risk matrix and continuity plans",
+        "Leads audits with cross-functional teams"
+      ],
+      "EXCEPTIONAL": [
+        "Leads supplier development programs; builds top-tier vendor base"
+      ]
+    },
+    "notes": "definition callout empty"
+  },
+  {
+    "name": "Talent Acquisition",
+    "draft": true,
+    "functionalLeader": "CL",
+    "notionUrl": "https://app.notion.com/p/3f7c1d7015dc8043b8c3da4c561f9328",
+    "definition": "Finds, assesses and hires the people the company needs, at the right speed and quality. Owns the hiring process from intake to signed contract and keeps candidate experience high throughout.",
+    "levels": {
+      "POOR": [
+        "Starts recruiting without a clear role profile or agreed requirements",
+        "Passes on candidates without screening them properly against the role",
+        "Leaves candidates without updates; processes stall without follow-up"
+      ],
+      "BASIC": [
+        "Runs intake meetings with hiring managers and agrees role requirements and process",
+        "Screens CVs and runs first-round interviews against agreed criteria",
+        "Keeps the ATS up to date and gives candidates timely updates"
+      ],
+      "INTERMEDIATE": [
+        "Ensures a consistent, professional candidate experience at every stage, including for rejected candidates, and acts on candidate feedback",
+        "Challenges hiring managers on requirements, salary range and process when needed",
+        "Improves the hiring process using funnel data (conversion, time-to-hire, source) and feedback from candidates and hiring managers"
+      ],
+      "ADVANCED": [
+        "Acts as a trusted advisor to hiring managers on market, talent availability and assessment",
+        "Turns company hiring plans into a recruiting strategy (priorities, channels, timelines) and adjusts it as business needs change"
+      ],
+      "EXCEPTIONAL": [
+        "Builds an employer brand that attracts strong candidates to apply",
+        "Shapes workforce planning with leadership, anticipating hiring needs before roles open",
+        "Builds a recruiting system that scales hiring without loss of quality"
+      ]
+    },
+    "notes": null
+  },
+  {
+    "name": "People Leadership",
+    "draft": true,
+    "functionalLeader": null,
+    "notionUrl": "https://app.notion.com/p/3f9c1d7015dc809aa2c5fe25434ab2d4",
+    "definition": "Builds, develops and directs people to deliver company goals. Grows from leading a single team to shaping how the whole organisation is led.",
+    "levels": {
+      "POOR": [
+        "Does not set clear goals or expectations for the team",
+        "Avoids difficult conversations; addresses performance issues late or not at all",
+        "Takes credit for team results or blames the team for misses"
+      ],
+      "BASIC": [
+        "Sets clear priorities and goals for each team member, linked to team OKRs",
+        "Holds regular 1:1s and gives timely, specific feedback",
+        "Delegates with clear ownership and deadlines"
+      ],
+      "INTERMEDIATE": [
+        "Addresses underperformance early with a clear plan, involving HR when needed",
+        "Develops team members through stretch tasks and agreed development goals",
+        "Owns the hiring process for their team with HR: defines role needs, interviews candidates and gives clear recommendations",
+        "Removes blockers and keeps the team focused on priorities",
+        "Builds a team that delivers without the lead in every decision"
+      ],
+      "ADVANCED": [
+        "Develops people into leaders and holds them accountable for results and growth",
+        "Aligns their team's goals with other teams and company priorities, and adjusts as priorities shift",
+        "Makes hiring decisions that raise the talent bar",
+        "Designs the structure, roles and headcount plan for their scope to deliver company goals",
+        "Builds successors for key roles",
+        "Makes tough people decisions (role changes, exits) fairly and quickly",
+        "Aligns with other departments and resolves cross-team conflicts"
+      ],
+      "EXCEPTIONAL": [
+        "Translates company strategy into organisation design across multiple departments",
+        "Sets leadership standards across the company; a role model for other leaders",
+        "Attracts and retains senior talent; a leader people want to work for",
+        "Builds an organisation that keeps performing and scaling without them"
+      ]
+    },
+    "notes": "Functional Leader property not set in Notion"
+  }
+]

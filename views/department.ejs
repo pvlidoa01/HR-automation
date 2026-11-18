@@ -1,0 +1,24 @@
+<%- include('partials/header') %>
+<div class="page-head"><div><h1>My department</h1><p class="muted">Reviews in the departments you head. You can read each one once its manager has submitted it.</p></div></div>
+<% if (!groups.length) { %><div class="card empty">Nothing here yet.</div><% } %>
+<% groups.forEach(g => { %>
+  <h2><%= g.name %> <span class="badge cycle-<%= g.status %>"><%= { open: 'Open', released: 'Released' }[g.status] %></span></h2>
+  <div class="card table-wrap" style="padding:0">
+    <table>
+      <thead><tr><th>Employee</th><th>Department</th><th>Reviewer</th><th>Status</th><th>Overall</th><th></th></tr></thead>
+      <tbody>
+        <% g.reviews.forEach(r => { const readable = r.status === 'submitted' || g.status === 'released'; %>
+          <tr>
+            <td><strong><%= r.employee_name %></strong><br><span class="muted small"><%= r.position %> · <%= r.seniority %></span></td>
+            <td><%= r.department %></td>
+            <td><%= r.reviewer_name %></td>
+            <td><span class="badge status-<%= r.status %>"><%= STATUS_LABELS[r.status] %></span></td>
+            <td><%- readable ? include('partials/grade', { code: r.grades.overall }) : '<span class="muted small">After submit</span>' %></td>
+            <td><% if (readable) { %><a class="btn small" href="/reviews/<%= r.id %>">View</a><% } %></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+<% }) %>
+<%- include('partials/footer') %>

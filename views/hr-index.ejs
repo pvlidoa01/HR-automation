@@ -1,0 +1,42 @@
+<%- include('partials/header') %>
+<div class="page-head">
+  <div><h1>HR</h1><p class="muted">Set up review cycles, follow progress, calibrate and release.</p></div>
+  <div class="btn-row">
+    <a class="btn" href="/hr/skills">Skills</a>
+    <a class="btn" href="/hr/settings">Access settings</a>
+  </div>
+</div>
+
+<div class="card">
+  <h3>New review cycle</h3>
+  <form method="post" action="/hr/cycles" class="inline-form">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <div class="field"><label for="name">Name</label><input id="name" type="text" name="name" placeholder="H2 2026" required></div>
+    <div class="field"><label for="deadline">Deadline for managers</label><input id="deadline" type="date" name="deadline"></div>
+    <button class="btn primary" type="submit">Create cycle</button>
+  </form>
+</div>
+
+<h2>Cycles</h2>
+<% if (!cycles.length) { %>
+  <div class="card empty">No cycles yet. Create the first one above.</div>
+<% } else { %>
+  <div class="card table-wrap" style="padding:0">
+    <table>
+      <thead><tr><th>Cycle</th><th>Status</th><th>Deadline</th><th>People</th><th>Submitted</th><th></th></tr></thead>
+      <tbody>
+        <% cycles.forEach(c => { %>
+          <tr>
+            <td><strong><%= c.name %></strong></td>
+            <td><span class="badge cycle-<%= c.status %>"><%= { setup: 'Being set up', open: 'Open', released: 'Released' }[c.status] %></span></td>
+            <td><%= fmtDate(c.deadline) %></td>
+            <td><%= c.people %></td>
+            <td><%= c.status === 'setup' ? '—' : `${c.submitted} / ${c.people}` %></td>
+            <td><a class="btn small" href="<%= c.status === 'setup' ? `/hr/cycles/${c.id}/setup` : `/cycles/${c.id}` %>"><%= c.status === 'setup' ? 'Continue set-up' : 'Open' %></a></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+<% } %>
+<%- include('partials/footer') %>

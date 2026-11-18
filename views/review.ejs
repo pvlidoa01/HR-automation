@@ -1,0 +1,236 @@
+<%- include('partials/header') %>
+<%
+  const r = review;
+  const edit = access.canEdit;
+  const areaLabels = { culture: 'Culture', deliverables: 'Deliverables', skills: 'Skills' };
+  const levelName = (v) => (v ? `${levelLabel(v)} (${v})` : '—');
+  const diffClass = (d) => (d == null ? '' : d > 0 ? 'pos' : d === 0 ? 'zero' : 'neg');
+  const diffText = (d) => (d == null ? '' : d > 0 ? `+${d}` : `${d}`);
+  const hrEditingOthers = access.role === 'hr' && r.reviewer_id !== user.id;
+  const pageData = {
+    seniority: r.seniority,
+    bar: { [r.seniority]: Object.fromEntries(dimensions.map(d => [d.key, d.expected])) },
+    statements: Object.fromEntries(dimensions.map(d => [d.key, d.statements])),
+  };
+%>
+<div class="page-head">
+  <div>
+    <p class="muted small" style="margin:0"><%= r.cycle_name %> · <%= access.isEmployee ? 'Your review' : 'Performance review' %></p>
+    <h1><%= r.employee_name %></h1>
+    <span class="badge status-<%= r.status %>"><%= STATUS_LABELS[r.status] %></span>
+    <% if (r.cycle_status === 'released') { %><span class="badge cycle-released">Released</span><% } %>
+  </div>
+  <div class="btn-row">
+    <% if (access.role === 'reviewer') { %><a class="btn" href="/team">Back to my team</a><% } %>
+    <% if (access.role === 'hr' || access.role === 'ceo') { %><a class="btn" href="/cycles/<%= r.cycle_id %>">Back to cycle</a><% } %>
+    <% if (access.role === 'dept_head') { %><a class="btn" href="/department">Back to my department</a><% } %>
+  </div>
+</div>
+
+<% if (errors.length) { %>
+  <div class="notice error" role="alert"><strong>Not saved.</strong><ul><% errors.forEach(e => { %><li><%= e %></li><% }) %></ul></div>
+<% } %>
+<% if (hrEditingOthers && edit) { %>
+  <div class="notice info">You are editing as HR. Every change is logged and visible to <%= r.reviewer_name %>.</div>
+<% } %>
+<% if (access.role === 'reviewer' && !edit && r.cycle_status === 'open') { %>
+  <div class="notice info">Submitted <%= fmtDateTime(r.submitted_at) %>. HR can reopen it if you need to change something.</div>
+<% } %>
+<% if (access.role === 'later_manager') { %>
+  <div class="notice info">Written by <%= r.reviewer_name %> in an earlier cycle. You can read it but not change it.</div>
+<% } %>
+
+<div class="card">
+  <div class="meta">
+    <div><span>Position</span><%= r.position %></div>
+    <div><span>Department</span><%= r.department %></div>
+    <div><span>Seniority</span><%= r.seniority %></div>
+    <div><span>Reviewer</span><%= r.reviewer_name %></div>
+    <% if (r.deadline && r.cycle_status === 'open') { %><div><span>Deadline</span><%= fmtDate(r.deadline) %></div><% } %>
+  </div>
+</div>
+
+<div class="review-layout">
+  <div>
+    <% if (edit) { %>
+      <form method="post" action="/reviews/<%= r.id %>" id="review-form" novalidate>
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <input type="hidden" name="version" value="<%= version %>">
+      <p class="small muted">For each dimension, go through the checklist top to bottom: it suggests a level, which you can change. Then write feedback for the employee. The Talent Bar shows the level expected for a <%= r.seniority %>.</p>
+    <% } %>
+
+    <% ['culture', 'deliverables', 'skills'].forEach(area => { %>
+      <div class="area-title">
+        <h2><%= areaLabels[area] %></h2>
+        <span data-area-grade="<%= area %>"><%- include('partials/grade', { code: grades.areas[area] }) %></span>
+      </div>
+      <% dimensions.filter(d => d.category === area).forEach(d => { const answers = d.checklist || {}; %>
+        <section class="dim" data-dim="<%= d.key %>">
+          <div class="dim-head">
+            <div>
+              <% if (area === 'skills') { %><div class="slot"><%= d.slot %></div><% } %>
+              <h3><%= d.label %></h3>
+            </div>
+            <div class="rating-box">
+              <span class="expected">Bar: <strong><%= levelName(d.expected) %></strong></span>
+              <% if (edit) { %>
+                <select name="rating[<%= d.key %>]" aria-label="Rating for <%= d.label %>" data-rating>
+                  <option value="">Choose a level</option>
+                  <% LEVELS.forEach(l => { %><option value="<%= l.value %>" <%= d.rating === l.value ? 'selected' : '' %>><%= l.value %> · <%= l.label %></option><% }) %>
+                </select>
+              <% } else { %>
+                <span class="expected">Rating:</span> <span class="rating-read"><%= levelName(d.rating) %></span>
+              <% } %>
+              <span class="diff <%= diffClass(d.diff) %>" data-diff><%= diffText(d.diff) %></span>
+            </div>
+          </div>
+          <% if (d.intro) { %><p class="dim-intro"><%= d.intro %></p><% } %>
+
+          <% if (d.statements && (edit || Object.keys(answers).length)) { %>
+            <details class="checklist" <%= edit && !d.rating ? 'open' : '' %>>
+              <summary><%= edit ? 'Behaviour checklist' : 'Checklist answers' %></summary>
+              <div class="levels">
+                <% if (edit) { %><p class="suggestion" data-suggestion></p><% } %>
+                <% LEVEL_KEYS.forEach(lvl => { const items = d.statements[lvl] || []; if (!items.length) return; %>
+                  <div class="level-block <%= lvl === 'POOR' ? 'poor' : '' %>">
+                    <h4><%= lvl === 'POOR' ? 'Poor: does any of this apply?' : levelLabel(LEVEL_KEYS.indexOf(lvl) + 1) %></h4>
+                    <% items.forEach((text, i) => { const a = answers[lvl] ? answers[lvl][i] : undefined; %>
+                      <div class="stmt">
+                        <span><%= text %></span>
+                        <% if (edit) { %>
+                          <span class="yn" role="radiogroup" aria-label="<%= text %>">
+                            <label><input type="radio" name="chk[<%= d.key %>][<%= lvl %>][<%= i %>]" value="yes" <%= a === 'yes' ? 'checked' : '' %>><span>Yes</span></label>
+                            <label><input type="radio" name="chk[<%= d.key %>][<%= lvl %>][<%= i %>]" value="no" <%= a === 'no' ? 'checked' : '' %>><span>No</span></label>
+                          </span>
+                        <% } else { %>
+                          <span class="small muted"><%= a === 'yes' ? 'Yes' : a === 'no' ? 'No' : '—' %></span>
+                        <% } %>
+                      </div>
+                    <% }) %>
+                  </div>
+                <% }) %>
+              </div>
+            </details>
+          <% } else if (edit && !d.statements) { %>
+            <p class="small muted">No behaviour statements for this skill yet, so pick the level directly.</p>
+          <% } %>
+
+          <% if (edit) { %>
+            <label for="fb-<%= d.key %>" class="small">Feedback for the employee</label>
+            <textarea id="fb-<%= d.key %>" name="feedback[<%= d.key %>]" placeholder="What did you observe? What should they keep doing or change?"><%= d.feedback %></textarea>
+          <% } else if (d.feedback) { %>
+            <div class="feedback-read"><%= d.feedback %></div>
+          <% } %>
+        </section>
+      <% }) %>
+    <% }) %>
+
+    <h2>Action plan</h2>
+    <div class="card">
+      <% if (edit) { %>
+        <label for="action_plan" class="small">Agreed next steps for the employee (visible to them after release)</label>
+        <textarea id="action_plan" name="action_plan" style="min-height:110px"><%= r.action_plan %></textarea>
+      <% } else { %>
+        <div class="feedback-read"><%= r.action_plan || 'No action plan written.' %></div>
+      <% } %>
+    </div>
+
+    <% if (access.canSeeHrPoints) { %>
+      <h2>HR action points</h2>
+      <div class="card private">
+        <p class="private-tag">Never shown to the employee</p>
+        <% if (edit) { %>
+          <label for="hr_action_points" class="small">Salary, equity or promotion points for HR</label>
+          <textarea id="hr_action_points" name="hr_action_points" style="min-height:90px"><%= r.hr_action_points %></textarea>
+        <% } else { %>
+          <div class="feedback-read"><%= r.hr_action_points || 'None.' %></div>
+        <% } %>
+      </div>
+    <% } %>
+
+    <% if (edit) { %>
+      <div class="sticky-actions">
+        <div class="btn-row">
+          <% if (hrEditingOthers) { %>
+            <button class="btn primary" type="submit" name="action" value="save">Save changes</button>
+          <% } else { %>
+            <button class="btn" type="submit" name="action" value="save">Save draft</button>
+            <button class="btn primary" type="submit" name="action" value="submit">Submit review</button>
+            <span class="small muted">Submitting locks the review. HR can reopen it.</span>
+          <% } %>
+        </div>
+      </div>
+      </form>
+    <% } %>
+
+    <% if (access.role === 'hr' && r.status === 'submitted' && r.cycle_status === 'open') { %>
+      <form method="post" action="/hr/reviews/<%= r.id %>/reopen" style="margin-top:12px">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <button class="btn" type="submit">Reopen for <%= r.reviewer_name %></button>
+      </form>
+    <% } %>
+
+    <% if (access.isEmployee) { %>
+      <h2>Your response</h2>
+      <div class="card">
+        <form method="post" action="/reviews/<%= r.id %>/read">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <label for="employee_comment" class="small">Comment for your manager and HR (optional)</label>
+          <textarea id="employee_comment" name="employee_comment"><%= r.employee_comment %></textarea>
+          <div class="btn-row" style="margin-top:8px">
+            <button class="btn primary" type="submit"><%= r.employee_read_at ? 'Update comment' : 'Mark as read' %></button>
+            <% if (r.employee_read_at) { %><span class="small muted">Marked as read <%= fmtDateTime(r.employee_read_at) %></span><% } %>
+          </div>
+        </form>
+      </div>
+    <% } else if (r.cycle_status === 'released') { %>
+      <h2>Employee response</h2>
+      <div class="card">
+        <% if (r.employee_read_at) { %>
+          <p class="small muted">Read <%= fmtDateTime(r.employee_read_at) %></p>
+          <% if (r.employee_comment) { %><div class="feedback-read"><%= r.employee_comment %></div><% } %>
+        <% } else { %>
+          <p class="muted">Not read yet.</p>
+        <% } %>
+      </div>
+    <% } %>
+
+    <% if (access.canSeeChangeLog && changeLog.length) { %>
+      <h2>Change log</h2>
+      <div class="card">
+        <ul class="log">
+          <% changeLog.forEach(c => { %>
+            <li>
+              <strong><%= c.field %></strong> · <%= c.user_name || 'Unknown' %> · <span class="muted"><%= fmtDateTime(c.at) %></span>
+              <% if (c.old_value != null || c.new_value != null) { %>
+                <div class="vals">From: <%= c.old_value || '(empty)' %>
+To: <%= c.new_value || '(empty)' %></div>
+              <% } %>
+            </li>
+          <% }) %>
+        </ul>
+      </div>
+    <% } %>
+  </div>
+
+  <aside class="review-side">
+    <div class="card">
+      <h3>Grades</h3>
+      <p class="small muted">Calculated from the ratings and the <%= r.seniority %> Talent Bar.</p>
+      <div class="side-grades">
+        <% ['culture', 'deliverables', 'skills'].forEach(area => { %>
+          <div><span><%= areaLabels[area] %></span><span data-area-grade="<%= area %>"><%- include('partials/grade', { code: grades.areas[area] }) %></span></div>
+        <% }) %>
+      </div>
+      <div class="overall side-grades">
+        <div><strong>Overall</strong><span data-overall><%- include('partials/grade', { code: grades.overall }) %></span></div>
+      </div>
+    </div>
+  </aside>
+</div>
+
+<% if (edit) { %>
+  <script type="application/json" id="review-data"><%- JSON.stringify(pageData).replace(/</g, '\\u003c') %></script>
+  <script type="module" src="/static/js/review-form.js"></script>
+<% } %>
+<%- include('partials/footer') %>
