@@ -28,6 +28,6 @@
     "pg": "^8.23.1"
   },
   "devDependencies": {
-    "supertest": "^7.3.1"
+    "supertest": "^7.3.2"
   }
 }
