@@ -1,5 +1,5 @@
 // Loading and saving reviews.
-import { one, many, tx } from './db.js';
+import { query, one, many, tx } from './db.js';
 import { DIMENSIONS, STATEMENTS, DIMENSION_INTROS, LEVEL_KEYS } from './shared/framework.js';
 import { computeGrades } from './shared/scoring.js';
 import { hasChecklist } from './shared/checklist.js';
@@ -67,6 +67,61 @@ export async function getChangeLog(reviewId) {
       WHERE l.review_id = $1 ORDER BY l.at DESC, l.id DESC`,
     [reviewId],
   );
+}
+
+/**
+ * Everything that happened on a review, newest first: messages and logged changes together.
+ * Each item: { kind: 'comment'|'change', at, user_name, user_id, body | field, old_value, new_value }.
+ */
+export async function getActivity(reviewId) {
+  return many(
+    `SELECT 'comment' AS kind, k.id, k.created_at AS at, k.user_id, u.name AS user_name, k.body,
+            NULL AS field, NULL AS old_value, NULL AS new_value
+       FROM review_comments k LEFT JOIN users u ON u.id = k.user_id WHERE k.review_id = $1
+     UNION ALL
+     SELECT 'change', l.id, l.at, l.user_id, u.name, NULL, l.field, l.old_value, l.new_value
+       FROM change_log l LEFT JOIN users u ON u.id = l.user_id WHERE l.review_id = $1
+     ORDER BY at DESC, id DESC`,
+    [reviewId],
+  );
+}
+
+export async function addComment(reviewId, userId, text) {
+  const body = cleanText(text, 5000);
+  if (!body) return { ok: false, error: 'Write a message first.' };
+  await query('INSERT INTO review_comments (review_id, user_id, body) VALUES ($1, $2, $3)', [reviewId, userId, body]);
+  return { ok: true };
+}
+
+/** Remembers that this person has seen everything on the review up to now. */
+export async function markSeen(userId, reviewId) {
+  await query(
+    `INSERT INTO review_seen (user_id, review_id, seen_at) VALUES ($1, $2, now())
+     ON CONFLICT (user_id, review_id) DO UPDATE SET seen_at = now()`,
+    [userId, reviewId],
+  );
+}
+
+/**
+ * Number of messages and changes by other people since this person last opened each review.
+ * Sets row.newActivity on the given review rows (only where they may see the discussion).
+ */
+export async function attachNewActivity(userId, rows, maySee) {
+  const ids = rows.filter(maySee).map((r) => r.id);
+  if (!ids.length) return;
+  const counts = await many(
+    `SELECT a.review_id, count(*)::int AS n FROM (
+        SELECT review_id, user_id, created_at AS at FROM review_comments WHERE review_id = ANY($2)
+        UNION ALL
+        SELECT review_id, user_id, at FROM change_log WHERE review_id = ANY($2)
+      ) a
+      LEFT JOIN review_seen s ON s.review_id = a.review_id AND s.user_id = $1
+      WHERE a.user_id IS DISTINCT FROM $1 AND (s.seen_at IS NULL OR a.at > s.seen_at)
+      GROUP BY a.review_id`,
+    [userId, ids],
+  );
+  const byId = new Map(counts.map((c) => [c.review_id, c.n]));
+  for (const r of rows) r.newActivity = byId.get(r.id) || 0;
 }
 
 function cleanText(v, max = 10000) {
@@ -215,7 +270,7 @@ export async function listReviews(where, params) {
             r.submitted_at, r.first_submitted_at, r.closed_at, r.employee_read_at, r.updated_at,
             (SELECT q.id FROM change_requests q WHERE q.review_id = r.id AND q.status = 'open') AS open_request_id,
             e.name AS employee_name, e.email AS employee_email,
-            m.name AS reviewer_name, m.email AS reviewer_email,
+            m.name AS reviewer_name, m.email AS reviewer_email, m.global_role AS reviewer_role,
             c.name AS cycle_name, c.status AS cycle_status, c.talent_bar, c.deadline,
             COALESCE(json_object_agg(d.dimension, d.rating) FILTER (WHERE d.dimension IS NOT NULL), '{}') AS ratings
        FROM reviews r

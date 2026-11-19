@@ -113,7 +113,7 @@ async function reviewPeople(reviewId) {
        JOIN users e ON e.id = r.employee_id
        JOIN users m ON m.id = r.reviewer_id
        LEFT JOIN reviews mr ON mr.cycle_id = r.cycle_id AND mr.employee_id = r.reviewer_id
-       LEFT JOIN users s ON s.id = mr.reviewer_id
+       LEFT JOIN users s ON s.id = mr.reviewer_id AND s.global_role IS DISTINCT FROM 'viewer_all'
       WHERE r.id = $1`,
     [reviewId],
   );

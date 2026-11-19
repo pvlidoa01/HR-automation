@@ -6,7 +6,8 @@
   const levelName = (v) => (v ? `${levelLabel(v)} (${v})` : '—');
   const diffClass = (d) => (d == null ? '' : d > 0 ? 'pos' : d === 0 ? 'zero' : 'neg');
   const diffText = (d) => (d == null ? '' : d > 0 ? `+${d}` : `${d}`);
-  const hrEditingOthers = access.role === 'hr' && !access.canSubmit;
+  const hrEditingOthers = (access.role === 'hr' || access.role === 'ceo') && !access.canSubmit;
+  const editorLabel = access.role === 'ceo' ? 'the CEO' : 'HR';
   const confirmStep = access.canSubmit && r.status === 'submitted';
   const pageData = {
     seniority: r.seniority,
@@ -31,12 +32,12 @@
   <div class="notice error" role="alert"><strong>Not saved.</strong><ul><% errors.forEach(e => { %><li><%= e %></li><% }) %></ul></div>
 <% } %>
 <% if (hrEditingOthers && edit) { %>
-  <div class="notice info">You are editing as HR. Every change is logged and visible to <%= r.reviewer_name %><%= confirmerName ? ` and ${confirmerName}` : '' %>.</div>
+  <div class="notice info">You are editing as <%= editorLabel %>. Every change is logged and visible to <%= r.reviewer_name %><%= confirmerName ? ` and ${confirmerName}` : '' %><%= access.role === 'ceo' ? '. Your changes are optional: they don\'t change the steps or whether the review is complete' : '' %>.</div>
 <% } %>
 <% if (access.role === 'reviewer' && !edit && r.cycle_status === 'open') { %>
   <div class="notice info">
     <% if (r.status === 'submitted') { %>You submitted it <%= fmtDateTime(r.submitted_at) %>. <%= confirmerName %> now confirms it or adjusts it.<% } else { %>Completed <%= fmtDateTime(r.closed_at) %>.<% } %>
-    To change something, ask HR to reopen it.
+    You always see the latest version here; any change made after your submit is listed under <a href="#activity">Discussion and changes</a>, where you can comment on it. To change something yourself, ask HR to reopen it.
   </div>
 <% } %>
 <% if (access.role === 'confirmer' && r.cycle_status === 'open') { %>
@@ -225,22 +226,6 @@
       </div>
     <% } %>
 
-    <% if (access.canSeeChangeLog && changeLog.length) { %>
-      <h2>Change log</h2>
-      <div class="card">
-        <ul class="log">
-          <% changeLog.forEach(c => { %>
-            <li>
-              <strong><%= c.field %></strong> · <%= c.user_name || 'Unknown' %> · <span class="muted"><%= fmtDateTime(c.at) %></span>
-              <% if (c.old_value != null || c.new_value != null) { %>
-                <div class="vals">From: <%= c.old_value || '(empty)' %>
-To: <%= c.new_value || '(empty)' %></div>
-              <% } %>
-            </li>
-          <% }) %>
-        </ul>
-      </div>
-    <% } %>
   </div>
 
   <aside class="review-side">
@@ -256,6 +241,9 @@ To: <%= c.new_value || '(empty)' %></div>
         <div><strong>Overall</strong><span data-overall><%- include('partials/grade', { code: grades.overall }) %></span></div>
       </div>
     </div>
+    <% if (access.canSeeChangeLog) { %>
+      <%- include('partials/activity', { activity, access, review: r, csrfToken, newSince, confirmerName }) %>
+    <% } %>
   </aside>
 </div>
 

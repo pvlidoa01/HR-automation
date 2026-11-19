@@ -11,6 +11,7 @@
   if (r && a.canView && !noOpen) {
     if (a.canEdit && a.role === 'reviewer') action = { label: r.status === 'not_started' ? 'Start review' : 'Continue', primary: true };
     else if (a.canEdit && a.role === 'confirmer') action = { label: r.status === 'submitted' ? 'Review and confirm' : 'Edit', primary: r.status === 'submitted' };
+    else if (a.canEdit && a.role === 'ceo') action = { label: 'Open', primary: false };
     else action = { label: mode === 'hr' ? 'Open' : 'View', primary: false };
   }
 %>
@@ -32,6 +33,7 @@
           <span class="badge status-<%= r.status %>"><%= STATUS_LABELS[r.status] %></span>
           <% if (r.status === 'submitted' && r.confirmerName) { %><span class="muted small">by <%= r.confirmerId === user.id ? 'you' : r.confirmerName %></span><% } %>
           <% if (r.open_request_id && mode === 'hr') { %><span class="badge status-draft">Reopen requested</span><% } %>
+          <% if (r.newActivity && !noOpen) { %><a class="badge new-activity" href="/reviews/<%= r.id %>#activity" title="Messages and changes by others since you last opened it"><%= r.newActivity %> new</a><% } %>
         <% } %>
       </div>
       <div class="org-grade">

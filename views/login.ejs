@@ -20,7 +20,7 @@
           <label for="email">Sign in as</label>
           <select id="email" name="email">
             <% users.forEach(u => { %>
-              <option value="<%= u.email %>"><%= u.name %> (<%= u.email %>)<%= u.global_role === 'hr_admin' ? ' · HR' : u.global_role === 'viewer_all' ? ' · sees all' : '' %></option>
+              <option value="<%= u.email %>"><%= u.name %> (<%= u.email %>)<%= u.global_role === 'hr_admin' ? ' · HR' : u.global_role === 'viewer_all' ? ' · CEO' : '' %></option>
             <% }) %>
           </select>
         </div>

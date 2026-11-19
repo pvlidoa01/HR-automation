@@ -2,7 +2,7 @@ import express from 'express';
 import multer from 'multer';
 import { one, many, query } from '../db.js';
 import { requireHr, verifyCsrf } from '../auth/index.js';
-import { parseId } from '../access.js';
+import { parseId, closeReviewsWithoutSecondLevel } from '../access.js';
 import { flash } from '../app.js';
 import { TALENT_BAR, SENIORITIES } from '../shared/framework.js';
 import { parseRoster, validateRoster } from '../roster.js';
@@ -328,7 +328,9 @@ export function hrRoutes() {
       }
       await query('INSERT INTO users (email, name, global_role) VALUES ($1, $2, $3)', [email, name, role]);
     }
-    flash(req, 'success', 'Access updated.');
+    // Someone who just became CEO is no longer a second level: reviews waiting for them are complete.
+    const closed = await closeReviewsWithoutSecondLevel({ query });
+    flash(req, 'success', closed ? `Access updated. ${closed} review(s) that were waiting for this person to confirm are now complete.` : 'Access updated.');
     res.redirect('/hr/settings');
   });
 

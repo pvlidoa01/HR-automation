@@ -89,6 +89,7 @@
           <td>
             <span class="badge status-<%= r.status %>"><%= STATUS_LABELS[r.status] %></span>
             <% if (r.open_request_id) { %><br><span class="badge status-draft">Reopen requested</span><% } %>
+            <% if (r.newActivity) { %><br><span class="badge new-activity"><%= r.newActivity %> new</span><% } %>
             <% if (cycle.status === 'released') { %><br><span class="muted small"><%= r.employee_read_at ? 'Read ' + fmtDate(r.employee_read_at) : 'Not read yet' %></span><% } %>
           </td>
           <td><% if (r.isOwnHidden) { %><span class="muted small">Your own review</span><% } else { %><%- include('partials/grade', { code: r.grades.overall }) %><% } %></td>

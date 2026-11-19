@@ -22,12 +22,17 @@ The framework (values, deliverables, skills, Talent Bar, grade rules) comes from
    Grades are calculated live.
 5. **Two steps.** The manager submits, which locks it for them. Their own manager then sees it for the
    first time, can adjust it (every change is logged and visible to the manager) and **confirms** it,
-   which completes it. If the manager reports to someone who is not reviewed (a head reporting to the
-   CEO), the manager's submit completes it.
+   which completes it. If the manager's own manager is the CEO or is not reviewed (the heads), the
+   manager's submit completes it: the CEO is never an approval step.
 6. **Changes after submitting.** The manager (or, once completed, the second level) uses
    **Ask HR to reopen** with a short explanation. HR approves or declines under **Requests**; HR can
    also reopen any review directly from the cycle page. A reopened review goes through both steps again.
 7. **HR follows the cycle** as an organisation tree (or a list) and can edit any review while it is open.
+   The CEO can do the same, optionally: their edits are logged and don't change the steps.
+8. **Discussion and changes.** Next to each review, the manager, the second level (once it reaches
+   them), HR and the CEO see every logged change and can post messages, e.g. a manager questioning a
+   change made by their own manager. "N new" next to a review shows activity since you last opened it.
+   Read-only after release; never shown to the employee.
 8. **HR releases all reviews at once** once every review is completed. Employees see their review,
    can mark it as read and leave a comment.
 
@@ -46,7 +51,7 @@ points. They are only sent once Microsoft sign-in and `MAIL_FROM` are set up (se
 | Person | Sees | Can change |
 | --- | --- | --- |
 | HR admin (HR manager + one backup) | Every review, HR action points, change log | Everything while the cycle is open |
-| CEO | Every review, HR action points, change log | Nothing (their flow is to be decided) |
+| CEO | Every review, HR action points, discussion and changes | Any review while the cycle is open (optional, logged; never an approval step; cannot reopen) |
 | Manager (writes the review) | Their direct reports' reviews | Until they submit; then only by asking HR |
 | Manager's manager (second level) | Those reviews once the manager has submitted them, HR action points included | Until they confirm; then only by asking HR |
 | Anyone higher up | Nothing: each head's branch is independent | Nothing |
@@ -104,7 +109,7 @@ unless `ALLOW_TEST_LOGIN_ON_DEPLOYMENT=true` is also set (only for a test deploy
 - **Turn test login off** (`ALLOW_TEST_LOGIN=false` or delete it). With test login on, anyone with the
   link can sign in as anyone.
 - Use a fresh database without demo data, or run `npm run demo:remove`.
-- In **HR → Access settings**, add the backup HR admin and the CEO (read-only).
+- In **HR → Access settings**, add the backup HR admin and the CEO.
 
 Note: Replit hosts in the US. Decided for the MVP; revisit if EU hosting becomes a requirement.
 
@@ -121,8 +126,7 @@ TEST_DATABASE_URL=postgresql://localhost/r3test npm test   # wipes that database
 
 - Importing employees and reporting lines from Personio (needs Personio Core Pro API access).
 - Deadline reminder emails (needs a scheduled job).
-- The CEO's own step in the flow, and an "in this cycle: yes/no" column for people who are not
-  reviewed (both to be decided).
+- An "in this cycle: yes/no" column for people who are not reviewed (to be decided).
 - Importing the H1 2026 Excel as history (waiting for the full file).
 - Self-assessment by employees.
 

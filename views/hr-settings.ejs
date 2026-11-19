@@ -1,6 +1,6 @@
 <%- include('partials/header') %>
 <div class="page-head">
-  <div><h1>Access settings</h1><p class="muted">People who see every review. Managers, department heads and employees get their access from each cycle's employee list.</p></div>
+  <div><h1>Access settings</h1><p class="muted">People who see every review. HR admins edit, reopen and release. The CEO can read and edit every review, but is never the one who confirms: their edits are optional and logged. Managers, department heads and employees get their access from each cycle's employee list.</p></div>
   <a class="btn" href="/hr">Back to HR</a>
 </div>
 <div class="card table-wrap" style="padding:0">
@@ -10,7 +10,7 @@
       <% people.forEach(p => { %>
         <tr>
           <td><strong><%= p.name %></strong><br><span class="muted small"><%= p.email %></span></td>
-          <td><%= p.global_role === 'hr_admin' ? 'HR admin: sees and edits all reviews' : 'Sees all reviews, read-only' %></td>
+          <td><%= p.global_role === 'hr_admin' ? 'HR admin: sees and edits all reviews' : 'CEO: sees and can edit all reviews (optional, not an approval step)' %></td>
           <td>
             <% if (p.email !== user.email) { %>
               <form method="post" action="/hr/settings/role">
@@ -34,7 +34,7 @@
     <div class="field"><label>Name</label><input type="text" name="name"></div>
     <div class="field"><label>Work email</label><input type="email" name="email" required></div>
     <div class="field"><label>Access</label>
-      <select name="role"><option value="viewer_all">Sees all reviews, read-only</option><option value="hr_admin">HR admin</option></select>
+      <select name="role"><option value="viewer_all">CEO: sees and can edit all reviews, outside the approval steps</option><option value="hr_admin">HR admin</option></select>
     </div>
     <button class="btn primary" type="submit">Save</button>
   </form>

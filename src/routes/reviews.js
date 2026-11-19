@@ -1,7 +1,7 @@
 import express from 'express';
 import { query, one } from '../db.js';
 import { loadReviewWithAccess, parseId } from '../access.js';
-import { getReviewDetail, getChangeLog, saveReview, versionOf, STATUS_LABELS } from '../reviews.js';
+import { getReviewDetail, getActivity, addComment, markSeen, saveReview, versionOf, STATUS_LABELS } from '../reviews.js';
 import { flash } from '../app.js';
 import { requestChange } from '../cycles.js';
 import { notifySubmitted, notifyChangeRequested, safely } from '../notify.js';
@@ -10,6 +10,13 @@ import { LEVELS, LEVEL_KEYS } from '../shared/framework.js';
 const notFound = (res) => res.status(404).render('error', { title: 'Not found', message: "This review doesn't exist or you don't have access to it." });
 
 async function renderReview(res, id, access, extra = {}) {
+  const userId = res.locals.user?.id;
+  // When this person last opened the review: items after that are marked "new". Then mark it seen.
+  let newSince = null;
+  if (access.canSeeChangeLog && userId) {
+    newSince = (await one('SELECT seen_at FROM review_seen WHERE user_id = $1 AND review_id = $2', [userId, id]))?.seen_at || null;
+    await markSeen(userId, id);
+  }
   const detail = extra.detail || (await getReviewDetail(id));
   const openRequest = await one(
     `SELECT q.*, u.name AS requester_name FROM change_requests q JOIN users u ON u.id = q.requested_by
@@ -23,7 +30,8 @@ async function renderReview(res, id, access, extra = {}) {
     title: `${detail.review.employee_name} · ${detail.review.cycle_name}`,
     ...detail,
     access,
-    changeLog: access.canSeeChangeLog ? await getChangeLog(id) : [],
+    activity: access.canSeeChangeLog ? await getActivity(id) : [],
+    newSince,
     errors: extra.errors || [],
     version: extra.version || versionOf(detail.review),
     LEVELS,
@@ -92,6 +100,21 @@ export function reviewRoutes() {
     }
     flash(req, 'success', 'Saved.');
     return res.redirect(`/reviews/${id}`);
+  });
+
+  router.post('/reviews/:id/comments', async (req, res) => {
+    const id = parseId(req.params.id);
+    if (!id) return notFound(res);
+    const { access } = await loadReviewWithAccess(req.user, id);
+    if (!access.canSeeChangeLog) return notFound(res);
+    if (!access.canComment) {
+      flash(req, 'error', 'The discussion is closed for this review.');
+      return res.redirect(`/reviews/${id}#activity`);
+    }
+    const result = await addComment(id, req.user.id, req.body?.body);
+    if (!result.ok) flash(req, 'error', result.error);
+    else await markSeen(req.user.id, id);
+    return res.redirect(`/reviews/${id}#activity`);
   });
 
   router.post('/reviews/:id/request-change', async (req, res) => {

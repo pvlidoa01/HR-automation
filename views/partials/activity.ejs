@@ -1,0 +1,43 @@
+<%#
+  Discussion and changes next to a review: messages and logged edits together, newest first.
+  Locals: activity, access, review, csrfToken, newSince (when this person last opened it, or null), confirmerName
+%>
+<div class="card activity" id="activity">
+  <h3>Discussion and changes</h3>
+  <p class="small muted">Seen by <%= review.reviewer_name %><%= confirmerName ? `, ${confirmerName}` : '' %>, HR and the CEO. Never by the employee.</p>
+  <% if (access.canComment) { %>
+    <form method="post" action="/reviews/<%= review.id %>/comments" class="activity-form">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <label for="comment-body" class="small">Add a message</label>
+      <textarea id="comment-body" name="body" required maxlength="5000" placeholder="e.g. Why was this rating changed? I saw it differently because…"></textarea>
+      <button class="btn small" type="submit">Post</button>
+    </form>
+  <% } %>
+  <% if (!activity.length) { %>
+    <p class="small muted">Nothing yet. Changes made after the manager's first submit, and every change by HR or the CEO, appear here.</p>
+  <% } else { %>
+    <ul class="activity-list">
+      <% activity.forEach(a => { const isNew = a.user_id !== user.id && (!newSince || new Date(a.at) > new Date(newSince)); %>
+        <li class="<%= a.kind %><%= isNew ? ' is-new' : '' %>">
+          <div class="activity-head">
+            <strong><%= a.user_name || 'System' %></strong>
+            <span class="muted small"><%= fmtDateTime(a.at) %></span>
+            <% if (isNew) { %><span class="badge new-activity">new</span><% } %>
+          </div>
+          <% if (a.kind === 'comment') { %>
+            <div class="activity-body"><%= a.body %></div>
+          <% } else { %>
+            <div class="activity-change"><%= a.field %></div>
+            <% if (a.old_value != null || a.new_value != null) { %>
+              <% const long = (a.old_value || '').length + (a.new_value || '').length > 160; %>
+              <% if (long) { %><details><summary class="small">Show the change</summary><% } %>
+              <div class="vals"><span class="muted">From:</span> <%= a.old_value || '(empty)' %>
+<span class="muted">To:</span> <%= a.new_value || '(empty)' %></div>
+              <% if (long) { %></details><% } %>
+            <% } %>
+          <% } %>
+        </li>
+      <% }) %>
+    </ul>
+  <% } %>
+</div>

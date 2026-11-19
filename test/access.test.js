@@ -245,17 +245,24 @@ if (!dbUrl) {
     assert.equal((await headOps.get(`/reviews/${ids.r1}`)).status, 404);
   });
 
-  test('CEO reads everything read-only, including HR points', async () => {
+  test('CEO reads and edits every review (logged) without submitting or changing its step', async () => {
     const ceo = await as('ceo');
     const res = await ceo.get(`/reviews/${ids.r1}`);
     assert.equal(res.status, 200);
     assert.match(res.text, /SECRET-SALARY-NOTE/);
-    assert.doesNotMatch(res.text, /name="rating\[/);
-    const post = await postReview(ceo, ids.r1, { action: 'save', ...allRatings(5) });
+    assert.match(res.text, /name="rating\[/, 'CEO gets the edit form');
+    assert.doesNotMatch(res.text, /value="submit"/, 'but no submit or confirm button');
+    const before = await status(ids.r1);
+    const post = await postReview(ceo, ids.r1, { action: 'submit', ...allRatings(3), 'rating[impact]': '4' });
     assert.equal(post.status, 302);
-    const rating = (await pool.query("SELECT rating FROM review_dimensions WHERE review_id = $1 AND dimension = 'impact'", [ids.r1])).rows[0].rating;
-    assert.equal(rating, 3);
+    assert.equal(await rating(ids.r1, 'impact'), 4);
+    assert.equal(await status(ids.r1), before, 'the CEO\'s edit does not change the step');
+    const log = (await pool.query(
+      'SELECT l.field, u.email FROM change_log l JOIN users u ON u.id = l.user_id WHERE l.review_id = $1', [ids.r1])).rows;
+    assert.ok(log.some((l) => l.field === 'Impact: rating' && l.email === E('ceo')), JSON.stringify(log));
     assert.equal((await ceo.get('/hr')).status, 403);
+    const reopen = await ceo.post(`/hr/reviews/${ids.r1}/reopen`).type('form').send({ _csrf: ceo.csrf });
+    assert.equal(reopen.status, 403, 'reopening stays with HR');
   });
 
   test('HR edits a completed review and the change is logged for the manager', async () => {
@@ -434,6 +441,96 @@ if (!dbUrl) {
     // A multipart post without a token is refused (only the roster upload is multipart).
     const mp = await mD.post(`/reviews/${emp5}`).field('action', 'save');
     assert.equal(mp.status, 403);
+  });
+
+  test('CEO is never the second level: a head\'s submit completes the review; the CEO may still edit it', async () => {
+    const c5 = await makeCycle('C5', [['headX', 'X', 'ceo'], ['mX', 'X', 'headX'], ['empX', 'X', 'mX']]);
+    await initiateCycle(c5);
+    const rmX = await reviewId(c5, 'mX');
+    const rHead = await reviewId(c5, 'headX');
+    const headX = await as('headX');
+    assert.match((await headX.get(`/reviews/${rmX}`)).text, /Submitting completes the review/);
+    assert.equal((await postReview(headX, rmX, { action: 'submit', ...allRatings(3) })).status, 302);
+    assert.equal(await status(rmX), 'closed', 'no CEO confirmation step');
+    const ceo = await as('ceo');
+    const home = await ceo.get('/');
+    assert.doesNotMatch(home.text, /Review and confirm|to confirm/i, 'nothing waits for the CEO');
+    assert.equal((await postReview(ceo, rmX, { action: 'save', ...allRatings(4) })).status, 302);
+    assert.equal(await status(rmX), 'closed');
+    assert.equal(await rating(rmX, 'impact'), 4);
+    // The CEO writes and submits the heads' reviews; they complete straight away.
+    assert.equal((await postReview(ceo, rHead, { action: 'submit', ...allRatings(3) })).status, 302);
+    assert.equal(await status(rHead), 'closed');
+    // ...and can still edit them afterwards as CEO.
+    assert.equal((await postReview(ceo, rHead, { action: 'save', ...allRatings(5) })).status, 302);
+    assert.equal(await rating(rHead, 'impact'), 5);
+  });
+
+  test('discussion next to a review: everyone involved, never the employee, read-only after release', async () => {
+    const c6 = await makeCycle('C6', [['headY', 'Y', 'ceo'], ['mY', 'Y', 'headY'], ['empY', 'Y', 'mY']]);
+    await initiateCycle(c6);
+    const id = await reviewId(c6, 'empY');
+    const mY = await as('mY');
+    const headY = await as('headY');
+    const hr = await as('hr');
+    const ceo = await as('ceo');
+    const say = (agent, body) => agent.post(`/reviews/${id}/comments`).type('form').send({ _csrf: agent.csrf, body });
+    assert.equal((await say(mY, 'MANAGER-NOTE before submit')).status, 302);
+    assert.equal((await say(headY, 'too early')).status, 404, 'second level not involved before the submit');
+    assert.equal((await say(await as('empY'), 'employee')).status, 404);
+    assert.equal((await say(await as('emp1'), 'stranger')).status, 404);
+    assert.match((await hr.get(`/reviews/${id}`)).text, /MANAGER-NOTE before submit/);
+    assert.equal((await say(ceo, 'CEO-NOTE')).status, 302);
+
+    assert.equal((await postReview(mY, id, { action: 'submit', ...allRatings(3) })).status, 302);
+    assert.equal(await status(id), 'submitted', 'headY confirms (their own manager is the CEO, but they are not)');
+    assert.match((await headY.get('/team')).text, /\d+ new/, 'second level sees new activity');
+    const page = await headY.get(`/reviews/${id}`);
+    assert.match(page.text, /MANAGER-NOTE before submit/);
+    assert.match(page.text, /CEO-NOTE/);
+    assert.doesNotMatch((await headY.get('/team')).text, /\d+ new/, 'seen after opening it');
+
+    // The second level changes a rating; the manager sees the latest version and the change, and can reply.
+    assert.equal((await postReview(headY, id, { action: 'save', ...allRatings(3), 'rating[quality]': '1' })).status, 302);
+    assert.match((await mY.get('/team')).text, /\d+ new/);
+    const mine = await mY.get(`/reviews/${id}`);
+    assert.match(mine.text, /Quality: rating/);
+    assert.match(mine.text, /Rating:<\/span> <span class="rating-read">[^<]*\(1\)/, 'manager sees the updated version');
+    assert.equal((await say(mY, 'I disagree on Ownership')).status, 302, 'manager can still comment after submitting');
+    assert.equal((await say(mY, '   ')).status, 302);
+    assert.equal((await pool.query('SELECT count(*)::int AS n FROM review_comments WHERE review_id = $1', [id])).rows[0].n, 3, 'empty message ignored');
+
+    // Released cycle: discussion is read-only and never shown to the employee.
+    assert.equal((await postReview(headY, id, { action: 'submit', ...allRatings(3) })).status, 302);
+    await hr.post(`/hr/cycles/${c6}/release`).type('form').send({ _csrf: hr.csrf, confirm: 'yes' });
+    assert.equal((await pool.query('SELECT status FROM cycles WHERE id = $1', [c6])).rows[0].status, 'open', 'headY review by the CEO not done yet');
+    const rHead = await reviewId(c6, 'headY');
+    await postReview(ceo, rHead, { action: 'submit', ...allRatings(3) });
+    const rM = await reviewId(c6, 'mY');
+    await postReview(headY, rM, { action: 'submit', ...allRatings(3) });
+    await hr.post(`/hr/cycles/${c6}/release`).type('form').send({ _csrf: hr.csrf, confirm: 'yes' });
+    assert.equal((await pool.query('SELECT status FROM cycles WHERE id = $1', [c6])).rows[0].status, 'released');
+    const after = await mY.get(`/reviews/${id}`);
+    assert.match(after.text, /I disagree on Ownership/);
+    assert.doesNotMatch(after.text, /name="body"/, 'no message box after release');
+    await say(mY, 'LATE');
+    assert.equal((await pool.query("SELECT count(*)::int AS n FROM review_comments WHERE body = 'LATE'")).rows[0].n, 0);
+    const emp = await (await as('empY')).get(`/reviews/${id}`);
+    assert.equal(emp.status, 200);
+    assert.doesNotMatch(emp.text, /MANAGER-NOTE|CEO-NOTE|Discussion and changes/);
+  });
+
+  test('making someone CEO completes the reviews that were waiting for them to confirm', async () => {
+    const c7 = await makeCycle('C7', [['mZ', 'Z', 'bossZ'], ['empZ', 'Z', 'mZ']]);
+    await initiateCycle(c7);
+    const id = await reviewId(c7, 'empZ');
+    await postReview(await as('mZ'), id, { action: 'submit', ...allRatings(3) });
+    assert.equal(await status(id), 'submitted');
+    const hr = await as('hr');
+    const res = await hr.post('/hr/settings/role').type('form').send({ _csrf: hr.csrf, email: E('bossZ'), name: 'bossZ', role: 'viewer_all' });
+    assert.equal(res.status, 302);
+    assert.equal(await status(id), 'closed');
+    await hr.post('/hr/settings/role').type('form').send({ _csrf: hr.csrf, email: E('bossZ'), role: '' });
   });
 
   test('only HR opens HR pages', async () => {

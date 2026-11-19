@@ -27,10 +27,13 @@ export function buildTree(rows, user, cycle, opts = {}) {
   for (const n of nodes.values()) {
     n.children.sort((a, b) => a.name.localeCompare(b.name));
     if (n.review) {
-      const confirmerId = byEmployee.get(n.review.reviewer_id)?.reviewer_id ?? null;
+      // The reviewer's own manager confirms, unless that is the CEO (not part of the steps).
+      const up = byEmployee.get(n.review.reviewer_id);
+      const confirmerId = up && up.reviewer_role !== 'viewer_all' ? up.reviewer_id : null;
       n.review.confirmerId = confirmerId;
       n.review.confirmerName = confirmerId ? nodes.get(confirmerId)?.name : null;
       n.access = reviewAccess(user, n.review, cycle, { confirmerId });
+      n.review.access = n.access;
     }
   }
   const total = (n, seen = new Set()) => {

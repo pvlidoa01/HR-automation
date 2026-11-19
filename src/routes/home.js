@@ -1,6 +1,6 @@
 import express from 'express';
 import { one, many } from '../db.js';
-import { listReviews, STATUS_LABELS } from '../reviews.js';
+import { listReviews, attachNewActivity, STATUS_LABELS } from '../reviews.js';
 import { seesEverything, parseId } from '../access.js';
 import { cycleSummary } from '../cycles.js';
 import { buildTree } from '../org.js';
@@ -30,6 +30,7 @@ export function homeRoutes() {
       many(`SELECT r.id, e.name AS employee_name, m.name AS reviewer_name, c.name AS cycle_name
               FROM reviews r
               JOIN reviews mr ON mr.cycle_id = r.cycle_id AND mr.employee_id = r.reviewer_id
+              JOIN users me ON me.id = mr.reviewer_id AND me.global_role IS DISTINCT FROM 'viewer_all'
               JOIN cycles c ON c.id = r.cycle_id
               JOIN users e ON e.id = r.employee_id
               JOIN users m ON m.id = r.reviewer_id
@@ -63,6 +64,7 @@ export function homeRoutes() {
     for (const cycle of cycles) {
       const rows = await listReviews('r.cycle_id = $1', [cycle.id]);
       const tree = buildTree(rows, req.user, cycle, { rootUserId: req.user.id });
+      await attachNewActivity(req.user.id, rows, (r) => r.access?.canSeeChangeLog);
       groups.push({ ...cycle, roots: tree.roots });
     }
     // Earlier reviews of people the user manages now (read-only, released cycles only).
@@ -104,6 +106,7 @@ export function homeRoutes() {
       m[r.status] += 1;
     }
     const tree = buildTree(rows, req.user, summary.cycle);
+    await attachNewActivity(req.user.id, rows, (r) => !r.isOwnHidden && r.access?.canSeeChangeLog);
     const view = req.query.view === 'list' ? 'list' : 'tree';
     const openRequests = req.user.global_role === 'hr_admin'
       ? await one("SELECT count(*)::int AS n FROM change_requests q JOIN reviews r ON r.id = q.review_id WHERE q.status = 'open' AND r.cycle_id = $1", [summary.cycle.id])
