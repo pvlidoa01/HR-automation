@@ -39,16 +39,9 @@ export async function saveRoster(cycleId, validated, fileName) {
     const skills = await skillIdsByName(client, validated.rows.flatMap((r) => r.skills));
 
     await client.query('DELETE FROM reviews WHERE cycle_id = $1', [cycleId]);
-    await client.query('DELETE FROM cycle_departments WHERE cycle_id = $1', [cycleId]);
+    // One spelling per department name ("engineering" and "Engineering" become the first one used).
     const canonicalDept = new Map();
-    for (const d of validated.departments) {
-      canonicalDept.set(key(d.name), d.name);
-      await client.query('INSERT INTO cycle_departments (cycle_id, name, head_user_id) VALUES ($1, $2, $3)', [
-        cycleId,
-        d.name,
-        d.headEmail ? userIds.get(d.headEmail) : null,
-      ]);
-    }
+    for (const r of validated.rows) if (!canonicalDept.has(key(r.department))) canonicalDept.set(key(r.department), r.department);
     for (const r of validated.rows) {
       await client.query(
         `INSERT INTO reviews (cycle_id, employee_id, reviewer_id, department, position, seniority, skill1_id, skill2_id, skill3_id)
@@ -85,10 +78,10 @@ export async function releaseCycle(cycleId) {
     const c = (await client.query('SELECT status FROM cycles WHERE id = $1 FOR UPDATE', [cycleId])).rows[0];
     if (!c || c.status !== 'open') return { ok: false, error: 'Only an open cycle can be released.' };
     const pending = (await client.query(
-      "SELECT count(*)::int AS n FROM reviews WHERE cycle_id = $1 AND status <> 'submitted'",
+      "SELECT count(*)::int AS n FROM reviews WHERE cycle_id = $1 AND status <> 'closed'",
       [cycleId],
     )).rows[0].n;
-    if (pending) return { ok: false, error: `${pending} review(s) are not submitted yet. All reviews must be submitted before release.` };
+    if (pending) return { ok: false, error: `${pending} review(s) are not completed yet. All reviews must be completed before release.` };
     await client.query("UPDATE cycles SET status = 'released', released_at = now() WHERE id = $1", [cycleId]);
     return { ok: true };
   });
@@ -104,8 +97,7 @@ export async function addReview(cycleId, row, namesByEmail, actorId) {
     const exists = (await client.query('SELECT 1 FROM reviews WHERE cycle_id = $1 AND employee_id = $2', [cycleId, employeeId])).rows[0];
     if (exists) return { ok: false, error: `${row.employeeEmail} is already in this cycle.` };
     const skills = await skillIdsByName(client, row.skills);
-    const dept = (await client.query('SELECT name FROM cycle_departments WHERE cycle_id = $1 AND lower(name) = lower($2)', [cycleId, row.department])).rows[0];
-    if (!dept) await client.query('INSERT INTO cycle_departments (cycle_id, name) VALUES ($1, $2)', [cycleId, row.department]);
+    const dept = (await client.query('SELECT department AS name FROM reviews WHERE cycle_id = $1 AND lower(department) = lower($2) LIMIT 1', [cycleId, row.department])).rows[0];
     const { rows } = await client.query(
       `INSERT INTO reviews (cycle_id, employee_id, reviewer_id, department, position, seniority, skill1_id, skill2_id, skill3_id)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
@@ -126,9 +118,15 @@ export async function reassignReviewer(reviewId, email, name, actorId) {
     )).rows[0];
     if (!r) return { ok: false, error: 'This review no longer exists.' };
     if (r.cycle_status === 'released') return { ok: false, error: 'This review can no longer be changed.', cycleId: r.cycle_id };
-    if (r.status === 'submitted') return { ok: false, error: 'This review is already submitted. Reopen it first.', cycleId: r.cycle_id };
-    if (email === r.employee_email) return { ok: false, error: 'An employee cannot be their own reviewer.' };
+    if (['submitted', 'closed'].includes(r.status)) return { ok: false, error: 'This review is already submitted. Reopen it first.', cycleId: r.cycle_id };
+    if (email === r.employee_email) return { ok: false, error: 'An employee cannot be their own manager.', cycleId: r.cycle_id };
     const newId = await upsertUser(client, email, name);
+    // The new manager must not be someone who (indirectly) reports to this employee.
+    let cur = newId;
+    for (let i = 0; i < 100 && cur; i += 1) {
+      if (cur === r.employee_id) return { ok: false, error: 'That person reports (directly or indirectly) to this employee, so they cannot be their manager.', cycleId: r.cycle_id };
+      cur = (await client.query('SELECT reviewer_id FROM reviews WHERE cycle_id = $1 AND employee_id = $2', [r.cycle_id, cur])).rows[0]?.reviewer_id;
+    }
     await client.query('UPDATE reviews SET reviewer_id = $2, updated_at = now() WHERE id = $1', [reviewId, newId]);
     await log(client, reviewId, actorId, 'Reviewer', r.reviewer_email, email);
     return { ok: true, cycleId: r.cycle_id };
@@ -143,33 +141,76 @@ export async function removeReview(reviewId) {
     )).rows[0];
     if (!r) return { ok: false, error: 'This review no longer exists.' };
     if (r.cycle_status === 'released') return { ok: false, error: 'This review can no longer be removed.', cycleId: r.cycle_id };
-    if (r.status === 'submitted') return { ok: false, error: 'Submitted reviews cannot be removed. Reopen it first.', cycleId: r.cycle_id };
+    if (['submitted', 'closed'].includes(r.status)) return { ok: false, error: 'Submitted reviews cannot be removed. Reopen it first.', cycleId: r.cycle_id };
+    const manages = (await client.query('SELECT 1 FROM reviews WHERE cycle_id = $1 AND reviewer_id = (SELECT employee_id FROM reviews WHERE id = $2) LIMIT 1', [r.cycle_id, reviewId])).rows[0];
+    if (manages) return { ok: false, error: 'This person manages others in this cycle. Change their reports\' manager first.', cycleId: r.cycle_id };
     await client.query('DELETE FROM reviews WHERE id = $1', [reviewId]);
     return { ok: true, cycleId: r.cycle_id };
   });
 }
 
-export async function reopenReview(reviewId, actorId) {
-  return tx(async (client) => {
-    const r = (await client.query(
-      'SELECT r.status, c.status AS cycle_status FROM reviews r JOIN cycles c ON c.id = r.cycle_id WHERE r.id = $1 FOR UPDATE OF r',
+/**
+ * HR reopens a submitted or completed review: both the manager and the second level can edit it
+ * again, and it goes through both steps again. Open change requests for it are marked approved.
+ */
+export async function reopenReview(reviewId, actorId, client = null) {
+  const run = async (c) => {
+    const r = (await c.query(
+      'SELECT r.status, r.cycle_id, c.status AS cycle_status FROM reviews r JOIN cycles c ON c.id = r.cycle_id WHERE r.id = $1 FOR UPDATE OF r',
       [reviewId],
     )).rows[0];
-    if (!r || r.cycle_status !== 'open' || r.status !== 'submitted') return { ok: false, error: 'Only submitted reviews in an open cycle can be reopened.' };
-    await client.query("UPDATE reviews SET status = 'draft', submitted_at = NULL, updated_at = now() WHERE id = $1", [reviewId]);
-    await log(client, reviewId, actorId, 'Reopened for the manager', null, null);
+    if (!r || r.cycle_status !== 'open' || !['submitted', 'closed'].includes(r.status)) {
+      return { ok: false, error: 'Only submitted or completed reviews in an open cycle can be reopened.', cycleId: r?.cycle_id };
+    }
+    await c.query("UPDATE reviews SET status = 'draft', closed_at = NULL, updated_at = now() WHERE id = $1", [reviewId]);
+    await c.query(
+      "UPDATE change_requests SET status = 'approved', decided_by = $2, decided_at = now() WHERE review_id = $1 AND status = 'open'",
+      [reviewId, actorId],
+    );
+    await log(c, reviewId, actorId, 'Reopened by HR', null, null);
+    return { ok: true, cycleId: r.cycle_id };
+  };
+  return client ? run(client) : tx(run);
+}
+
+/** A manager (or second level) asks HR to reopen a review. Access is checked by the caller. */
+export async function requestChange(reviewId, userId, reason) {
+  return tx(async (client) => {
+    const r = (await client.query('SELECT status FROM reviews WHERE id = $1 FOR UPDATE', [reviewId])).rows[0];
+    if (!r || !['submitted', 'closed'].includes(r.status)) return { ok: false, error: 'Only submitted reviews can be reopened.' };
+    const open = (await client.query("SELECT 1 FROM change_requests WHERE review_id = $1 AND status = 'open'", [reviewId])).rows[0];
+    if (open) return { ok: false, error: 'A request to reopen this review is already waiting for HR.' };
+    await client.query('INSERT INTO change_requests (review_id, requested_by, reason) VALUES ($1, $2, $3)', [reviewId, userId, reason]);
+    await log(client, reviewId, userId, 'Asked HR to reopen', null, reason);
     return { ok: true };
+  });
+}
+
+/** HR approves (reopens) or declines a request. Returns { ok, reviewId, requester }. */
+export async function decideChange(requestId, actorId, approve, note) {
+  return tx(async (client) => {
+    const q = (await client.query(
+      `SELECT q.*, u.email AS requester_email, u.name AS requester_name
+         FROM change_requests q JOIN users u ON u.id = q.requested_by WHERE q.id = $1 FOR UPDATE OF q`,
+      [requestId],
+    )).rows[0];
+    if (!q || q.status !== 'open') return { ok: false, error: 'This request has already been handled.' };
+    if (approve) {
+      const res = await reopenReview(q.review_id, actorId, client);
+      if (!res.ok) return res;
+    }
+    await client.query(
+      'UPDATE change_requests SET status = $2, decided_by = $3, decided_at = now(), hr_note = $4 WHERE id = $1',
+      [requestId, approve ? 'approved' : 'declined', actorId, note],
+    );
+    if (!approve) await log(client, q.review_id, actorId, 'Request to reopen declined', null, note || null);
+    return { ok: true, reviewId: q.review_id, requester: { email: q.requester_email, name: q.requester_name } };
   });
 }
 
 export async function cycleSummary(cycleId) {
   const cycle = await one('SELECT * FROM cycles WHERE id = $1', [cycleId]);
   if (!cycle) return null;
-  const departments = await many(
-    `SELECT d.*, u.name AS head_name, u.email AS head_email
-       FROM cycle_departments d LEFT JOIN users u ON u.id = d.head_user_id
-      WHERE d.cycle_id = $1 ORDER BY d.name`,
-    [cycleId],
-  );
+  const departments = await many('SELECT DISTINCT department AS name FROM reviews WHERE cycle_id = $1 ORDER BY 1', [cycleId]);
   return { cycle, departments };
 }

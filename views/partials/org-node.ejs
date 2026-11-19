@@ -1,0 +1,100 @@
+<%#
+  One person in the organisation tree, then (folded) their direct reports.
+  Locals: node, mode ('hr' | 'team'), cycleOpen, isHrUser, STATUS_LABELS, csrfToken, user
+%>
+<%
+  const r = node.review;
+  const a = node.access || {};
+  const own = r && r.employee_id === user.id;
+  let action = null;
+  const noOpen = !!locals.noOpen;
+  if (r && a.canView && !noOpen) {
+    if (a.canEdit && a.role === 'reviewer') action = { label: r.status === 'not_started' ? 'Start review' : 'Continue', primary: true };
+    else if (a.canEdit && a.role === 'confirmer') action = { label: r.status === 'submitted' ? 'Review and confirm' : 'Edit', primary: r.status === 'submitted' };
+    else action = { label: mode === 'hr' ? 'Open' : 'View', primary: false };
+  }
+%>
+<div class="org-node">
+  <div class="org-row">
+    <div class="org-who">
+      <strong><%= node.name %></strong>
+      <% if (r) { %>
+        <span class="muted small"><%= r.position %> · <%= r.department %> · <%= r.seniority %></span>
+      <% } else { %>
+        <span class="muted small"><%= node.email %> · not reviewed in this cycle</span>
+      <% } %>
+    </div>
+    <% if (r) { %>
+      <div class="org-status">
+        <% if (own) { %>
+          <span class="muted small">Your own review</span>
+        <% } else { %>
+          <span class="badge status-<%= r.status %>"><%= STATUS_LABELS[r.status] %></span>
+          <% if (r.status === 'submitted' && r.confirmerName) { %><span class="muted small">by <%= r.confirmerId === user.id ? 'you' : r.confirmerName %></span><% } %>
+          <% if (r.open_request_id && mode === 'hr') { %><span class="badge status-draft">Reopen requested</span><% } %>
+        <% } %>
+      </div>
+      <div class="org-grade">
+        <% if (a.canView && !own) { %><%- include('grade', { code: r.grades.overall }) %><% } %>
+      </div>
+      <div class="org-actions">
+        <% if (action) { %>
+          <a class="btn small <%= action.primary ? 'primary' : '' %>" href="/reviews/<%= r.id %>"><%= action.label %></a>
+        <% } else if (!own && mode === 'team' && r.confirmerId === user.id && !r.first_submitted_at) { %>
+          <span class="muted small">You can open it once <%= r.reviewer_name %> submits</span>
+        <% } %>
+        <% if (mode === 'team' && a.canRequestChange && !r.open_request_id) { %>
+          <details class="inline-menu">
+            <summary class="small">Ask HR to reopen</summary>
+            <form method="post" action="/reviews/<%= r.id %>/request-change">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <input type="hidden" name="back" value="team">
+              <label class="small" for="reason-<%= r.id %>">What do you want to change, and why?</label>
+              <textarea id="reason-<%= r.id %>" name="reason" required minlength="5" maxlength="2000"></textarea>
+              <button class="btn small" type="submit">Send to HR</button>
+            </form>
+          </details>
+        <% } else if (mode === 'team' && r.open_request_id && a.canView) { %>
+          <span class="muted small">Reopen requested, waiting for HR</span>
+        <% } %>
+        <% if (mode === 'hr' && isHrUser && cycleOpen && !own) { %>
+          <% if (['submitted', 'closed'].includes(r.status)) { %>
+            <details class="inline-menu">
+              <summary class="small">Reopen</summary>
+              <form method="post" action="/hr/reviews/<%= r.id %>/reopen">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <input type="hidden" name="back" value="cycle">
+                <p class="small">Reopens it for <%= r.reviewer_name %><%= r.confirmerName ? ` and ${r.confirmerName}` : '' %>. It then goes through the steps again.</p>
+                <button class="btn small" type="submit">Reopen review</button>
+              </form>
+            </details>
+          <% } else { %>
+            <details class="inline-menu">
+              <summary class="small">Change manager / remove</summary>
+              <form method="post" action="/hr/reviews/<%= r.id %>/reassign">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <input type="text" name="reviewerName" placeholder="New manager name" required>
+                <input type="email" name="reviewerEmail" placeholder="New manager email" required>
+                <button class="btn small" type="submit">Change manager</button>
+              </form>
+              <form method="post" action="/hr/reviews/<%= r.id %>/remove">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <button class="btn small danger" type="submit">Remove from cycle</button>
+              </form>
+            </details>
+          <% } %>
+        <% } %>
+      </div>
+    <% } %>
+  </div>
+  <% if (node.direct) { %>
+    <details class="org-children">
+      <summary><%= node.direct %> direct report<%= node.direct === 1 ? '' : 's' %><% if (node.total > node.direct) { %> · <%= node.total %> in total<% } %></summary>
+      <div class="org-branch">
+        <% node.children.forEach(child => { %>
+          <%- include('org-node', { node: child, mode, cycleOpen, isHrUser, STATUS_LABELS, csrfToken, user, noOpen }) %>
+        <% }) %>
+      </div>
+    </details>
+  <% } %>
+</div>

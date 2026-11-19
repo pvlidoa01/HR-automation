@@ -2,6 +2,8 @@
 <div class="page-head">
   <div><h1>HR</h1><p class="muted">Set up review cycles, follow progress, calibrate and release.</p></div>
   <div class="btn-row">
+    <a class="btn" href="/hr/requests">Requests<% if (requests) { %> <span class="count"><%= requests %></span><% } %></a>
+    <a class="btn" href="/hr/emails">Emails</a>
     <a class="btn" href="/hr/skills">Skills</a>
     <a class="btn" href="/hr/settings">Access settings</a>
   </div>
@@ -23,7 +25,7 @@
 <% } else { %>
   <div class="card table-wrap" style="padding:0">
     <table>
-      <thead><tr><th>Cycle</th><th>Status</th><th>Deadline</th><th>People</th><th>Submitted</th><th></th></tr></thead>
+      <thead><tr><th>Cycle</th><th>Status</th><th>Deadline</th><th>People</th><th>Completed</th><th></th></tr></thead>
       <tbody>
         <% cycles.forEach(c => { %>
           <tr>
@@ -31,7 +33,7 @@
             <td><span class="badge cycle-<%= c.status %>"><%= { setup: 'Being set up', open: 'Open', released: 'Released' }[c.status] %></span></td>
             <td><%= fmtDate(c.deadline) %></td>
             <td><%= c.people %></td>
-            <td><%= c.status === 'setup' ? '—' : `${c.submitted} / ${c.people}` %></td>
+            <td><%= c.status === 'setup' ? '—' : `${c.closed} / ${c.people}` %></td>
             <td><a class="btn small" href="<%= c.status === 'setup' ? `/hr/cycles/${c.id}/setup` : `/cycles/${c.id}` %>"><%= c.status === 'setup' ? 'Continue set-up' : 'Open' %></a></td>
           </tr>
         <% }) %>

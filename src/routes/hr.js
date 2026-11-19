@@ -10,8 +10,14 @@ import { buildTemplate } from '../template.js';
 import { listReviews, STATUS_LABELS } from '../reviews.js';
 import {
   saveRoster, initiateCycle, releaseCycle, addReview, reassignReviewer,
-  removeReview, reopenReview, cycleSummary,
+  removeReview, reopenReview, cycleSummary, decideChange,
 } from '../cycles.js';
+import {
+  EMAIL_KINDS, getEmailSettings, saveEmailSettings, emailSendingEnabled,
+  notifyInitiated, notifyReleased, notifyReopened, notifyChangeDecided, safely,
+} from '../notify.js';
+import { config } from '../config.js';
+import { buildTree } from '../org.js';
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -35,10 +41,13 @@ async function renderSetup(res, cycleId, extra = {}) {
       .map((r) => [r.id, [r.skill1_id, r.skill2_id, r.skill3_id].map((id) => skillName.get(id) || '')]),
   );
   for (const r of saved) r.skills = savedSkills.get(r.id) || [];
+  const tree = buildTree(saved, res.locals.user, summary.cycle);
   return res.status(extra.status || 200).render('hr-setup', {
     title: `Set up ${summary.cycle.name}`,
     ...summary,
     saved,
+    roots: tree.roots,
+    STATUS_LABELS,
     preview: null,
     ...extra,
   });
@@ -58,10 +67,11 @@ export function hrRoutes() {
   router.get('/', async (req, res) => {
     const cycles = await many(
       `SELECT c.*, (SELECT count(*)::int FROM reviews r WHERE r.cycle_id = c.id) AS people,
-              (SELECT count(*)::int FROM reviews r WHERE r.cycle_id = c.id AND r.status = 'submitted') AS submitted
+              (SELECT count(*)::int FROM reviews r WHERE r.cycle_id = c.id AND r.status = 'closed') AS closed
          FROM cycles c ORDER BY c.created_at DESC`,
     );
-    res.render('hr-index', { title: 'HR', cycles });
+    const requests = (await one("SELECT count(*)::int AS n FROM change_requests WHERE status = 'open'")).n;
+    res.render('hr-index', { title: 'HR', cycles, requests });
   });
 
   router.post('/cycles', async (req, res) => {
@@ -112,7 +122,7 @@ export function hrRoutes() {
       flash(req, 'error', err.message);
       return res.redirect(`/cycles/${cycleId}`);
     }
-    const warnings = validated.rows.flatMap((r) => r.warnings.map((w) => `Row ${r.rowNumber}: ${w}`)).concat(validated.departmentWarnings);
+    const warnings = validated.rows.flatMap((r) => r.warnings.map((w) => `Row ${r.rowNumber}: ${w}`));
     req.session.setupWarnings = warnings;
     flash(req, 'success', `List saved: ${n} people. Check it below, then initiate the cycle.`);
     res.redirect(`/hr/cycles/${cycleId}/setup`);
@@ -126,7 +136,8 @@ export function hrRoutes() {
       return res.redirect(`/hr/cycles/${cycleId}/setup`);
     }
     delete req.session.setupWarnings;
-    flash(req, 'success', `Cycle initiated. ${result.count} reviews are now open for their managers. Share the app link with them.`);
+    await safely(notifyInitiated(cycleId));
+    flash(req, 'success', `Cycle initiated. ${result.count} reviews are now open for their managers.`);
     res.redirect(`/cycles/${cycleId}`);
   });
 
@@ -144,6 +155,7 @@ export function hrRoutes() {
       return res.redirect(`/cycles/${cycleId}`);
     }
     const result = await releaseCycle(cycleId);
+    if (result.ok) await safely(notifyReleased(cycleId));
     flash(req, result.ok ? 'success' : 'error', result.ok ? 'Released. Employees can now see their reviews.' : result.error);
     res.redirect(`/cycles/${cycleId}`);
   });
@@ -165,7 +177,7 @@ export function hrRoutes() {
       skill2: String(b.skill2 || '').trim(),
       skill3: String(b.skill3 || '').trim(),
     };
-    const v = validateRoster({ employees: [row], departments: [] }, await skillNames());
+    const v = validateRoster({ employees: [row] }, await skillNames());
     const errors = v.rows[0].errors;
     if (errors.length) {
       flash(req, 'error', `Not added: ${errors.join(' ')}`);
@@ -186,12 +198,12 @@ export function hrRoutes() {
     const email = String(req.body.reviewerEmail || '').trim().toLowerCase();
     const name = String(req.body.reviewerName || '').trim();
     if (!EMAIL_RE.test(email) || !name) {
-      flash(req, 'error', 'Enter the new reviewer\'s name and a valid email.');
+      flash(req, 'error', 'Enter the new manager\'s name and a valid email.');
       const r = await one('SELECT cycle_id FROM reviews WHERE id = $1', [id]);
       return res.redirect(r ? `/cycles/${r.cycle_id}` : '/hr');
     }
     const result = await reassignReviewer(id, email, name, req.user.id);
-    flash(req, result.ok ? 'success' : 'error', result.ok ? `Reviewer changed to ${name}.` : result.error);
+    flash(req, result.ok ? 'success' : 'error', result.ok ? `Manager changed to ${name}.` : result.error);
     res.redirect(result.cycleId ? `/cycles/${result.cycleId}` : '/hr');
   });
 
@@ -204,8 +216,57 @@ export function hrRoutes() {
   router.post('/reviews/:id/reopen', async (req, res) => {
     const id = Number(req.params.id);
     const result = await reopenReview(id, req.user.id);
-    flash(req, result.ok ? 'success' : 'error', result.ok ? 'Reopened. The manager can edit and submit it again.' : result.error);
-    res.redirect(`/reviews/${id}`);
+    if (result.ok) await safely(notifyReopened(id));
+    flash(req, result.ok ? 'success' : 'error', result.ok ? 'Reopened. The manager and their manager can edit it again; it goes through both steps again.' : result.error);
+    res.redirect(req.body.back === 'cycle' && result.cycleId ? `/cycles/${result.cycleId}` : `/reviews/${id}`);
+  });
+
+  // Requests from managers to reopen a review.
+  router.get('/requests', async (req, res) => {
+    const rows = await many(
+      `SELECT q.*, u.name AS requester_name, d.name AS decider_name, e.name AS employee_name, c.name AS cycle_name,
+              r.status AS review_status, c.status AS cycle_status
+         FROM change_requests q
+         JOIN users u ON u.id = q.requested_by
+         LEFT JOIN users d ON d.id = q.decided_by
+         JOIN reviews r ON r.id = q.review_id
+         JOIN users e ON e.id = r.employee_id
+         JOIN cycles c ON c.id = r.cycle_id
+        ORDER BY (q.status = 'open') DESC, q.created_at DESC
+        LIMIT 200`,
+    );
+    res.render('hr-requests', { title: 'Change requests', open: rows.filter((r) => r.status === 'open'), done: rows.filter((r) => r.status !== 'open'), STATUS_LABELS });
+  });
+
+  router.post('/requests/:id/decide', async (req, res) => {
+    const approve = req.body.decision === 'approve';
+    const note = String(req.body.note || '').trim().slice(0, 2000);
+    const result = await decideChange(Number(req.params.id), req.user.id, approve, note);
+    if (result.ok) {
+      await safely(notifyChangeDecided(result.reviewId, result.requester, approve, note));
+      if (approve) await safely(notifyReopened(result.reviewId, { skipEmail: result.requester.email }));
+    }
+    flash(req, result.ok ? 'success' : 'error', result.ok ? (approve ? 'Approved: the review is reopened.' : 'Declined. The manager has been told.') : result.error);
+    res.redirect('/hr/requests');
+  });
+
+  // Automatic emails: settings and a log of every email.
+  router.get('/emails', async (req, res) => {
+    const emails = await many('SELECT * FROM email_outbox ORDER BY created_at DESC, id DESC LIMIT 300');
+    res.render('hr-emails', {
+      title: 'Automatic emails',
+      emails,
+      settings: await getEmailSettings(),
+      EMAIL_KINDS,
+      sending: emailSendingEnabled(),
+      mailFrom: config.mailFrom,
+    });
+  });
+
+  router.post('/emails/settings', async (req, res) => {
+    await saveEmailSettings(Object.fromEntries(Object.keys(EMAIL_KINDS).map((k) => [k, req.body[k] === 'on'])));
+    flash(req, 'success', 'Email settings saved.');
+    res.redirect('/hr/emails');
   });
 
   router.get('/skills', async (req, res) => {

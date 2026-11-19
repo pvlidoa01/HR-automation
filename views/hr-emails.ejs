@@ -1,0 +1,44 @@
+<%- include('partials/header') %>
+<div class="page-head">
+  <div><h1>Automatic emails</h1><p class="muted">Which events send an email, and every email the app has prepared. Emails never contain ratings, feedback or HR action points: only who did what, and a link to the app.</p></div>
+  <a class="btn" href="/hr">Back to HR</a>
+</div>
+
+<% if (sending) { %>
+  <div class="notice info">Emails are sent from <strong><%= mailFrom %></strong>.</div>
+<% } else { %>
+  <div class="notice info"><strong>Emails are not being sent yet.</strong> They are prepared and listed below so you can check them. Sending starts once IT has set up Microsoft sign-in and allowed the app to send from a mailbox (see <em>docs/microsoft-sign-in-request.md</em>), and MAIL_FROM is set.</div>
+<% } %>
+
+<h2>When to send</h2>
+<div class="card">
+  <form method="post" action="/hr/emails/settings">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <% Object.entries(EMAIL_KINDS).forEach(([k, label]) => { %>
+      <label class="check-row"><input type="checkbox" name="<%= k %>" <%= settings[k] ? 'checked' : '' %>> <span><%= label %></span></label>
+    <% }) %>
+    <button class="btn primary" type="submit" style="margin-top:8px">Save</button>
+  </form>
+</div>
+
+<h2>Email log</h2>
+<% if (!emails.length) { %>
+  <div class="card empty">No emails yet.</div>
+<% } else { %>
+  <div class="card table-wrap" style="padding:0">
+    <table>
+      <thead><tr><th>When</th><th>To</th><th>Email</th><th>Status</th></tr></thead>
+      <tbody>
+        <% emails.forEach(e => { %>
+          <tr>
+            <td class="small"><%= fmtDateTime(e.created_at) %></td>
+            <td class="small"><%= e.to_name || '' %><br><span class="muted"><%= e.to_email %></span></td>
+            <td><details><summary class="small"><%= e.subject %></summary><div class="feedback-read small"><%= e.body %></div></details></td>
+            <td class="small"><%= { sent: 'Sent', pending: 'Sending…', not_sent: 'Not sent', failed: 'Failed', off: 'Turned off' }[e.status] %><% if (e.error) { %><br><span class="muted"><%= e.error %></span><% } %></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+<% } %>
+<%- include('partials/footer') %>

@@ -158,3 +158,34 @@ details.checklist .levels { padding: 4px 12px 10px; }
 .login-box { max-width: 440px; margin: 48px auto; }
 .empty { text-align: center; padding: 28px; color: var(--muted); }
 code { background: var(--surface-2); padding: 1px 5px; border-radius: 4px; }
+
+/* Two-step statuses */
+.badge.status-submitted { background: var(--info-soft); color: #2d4f9e; }
+.badge.status-closed { background: var(--ok-soft); color: var(--ok); }
+.count { display: inline-block; min-width: 1.4em; padding: 0 6px; border-radius: 999px; background: var(--bad); color: #fff; font-size: 0.75rem; font-weight: 700; text-align: center; line-height: 1.5; }
+
+/* Organisation tree */
+.org-tree { padding: 8px 16px; }
+.org-node { border-top: 1px solid var(--border, #e3e7ec); }
+.org-tree > .org-node:first-child { border-top: 0; }
+.org-row { display: grid; grid-template-columns: minmax(180px, 2fr) minmax(150px, 1.2fr) minmax(110px, 0.8fr) minmax(150px, 1.4fr); gap: 12px; align-items: center; padding: 10px 0; }
+.org-who { display: flex; flex-direction: column; min-width: 0; }
+.org-status { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.org-actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: flex-start; justify-content: flex-end; }
+.org-children > summary { cursor: pointer; font-size: 0.85rem; color: var(--muted); padding: 2px 0 10px; list-style: none; }
+.org-children > summary::-webkit-details-marker { display: none; }
+.org-children > summary::before { content: '▸ '; }
+.org-children[open] > summary::before { content: '▾ '; }
+.org-branch { margin-left: 18px; padding-left: 14px; border-left: 2px solid var(--border, #e3e7ec); }
+.inline-menu { width: 100%; text-align: right; }
+.inline-menu > summary { cursor: pointer; color: var(--muted); }
+.inline-menu form { text-align: left; margin-top: 6px; display: grid; gap: 6px; }
+.tabs { display: flex; gap: 4px; }
+.tabs a { padding: 4px 12px; border-radius: 8px; text-decoration: none; color: var(--muted); border: 1px solid transparent; }
+.tabs a.active { background: var(--surface-2); color: inherit; border-color: var(--border, #e3e7ec); }
+.check-row { display: flex; gap: 8px; align-items: flex-start; font-weight: 400; margin: 6px 0; }
+@media (max-width: 760px) {
+  .org-row { grid-template-columns: 1fr; gap: 6px; }
+  .org-actions { justify-content: flex-start; }
+  .inline-menu { text-align: left; }
+}

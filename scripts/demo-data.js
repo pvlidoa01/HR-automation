@@ -1,4 +1,7 @@
 // Fills the database with fictional people and a demo cycle, for trying the app in test mode.
+// Structure: Elena Head (not reviewed) -> Alex Lead -> Kim, Lee, Sam
+//            Omar Head (not reviewed)  -> Billie Lead -> Pat, Robin
+// So Alex writes Kim's review and Elena confirms it; Elena writes Alex's review alone.
 // Run: npm run demo   (never against the real database once real reviews exist)
 import { pool, one, query } from '../src/db.js';
 import { TALENT_BAR } from '../src/shared/framework.js';
@@ -42,12 +45,8 @@ async function main() {
     rowNumber: i + 2, employeeName: n, employeeEmail: D(n), department: dept, position: pos, seniority: sen,
     reviewerName: rev, reviewerEmail: D(rev), skill1: skills[0], skill2: skills[1], skill3: skills[2],
   }));
-  const departments = [
-    { department: 'Engineering', headName: people.engHead, headEmail: D(people.engHead) },
-    { department: 'Operations', headName: people.opsHead, headEmail: D(people.opsHead) },
-  ];
   const skillNames = (await pool.query('SELECT name FROM skills')).rows.map((r) => r.name);
-  const v = validateRoster({ employees: rows, departments }, skillNames);
+  const v = validateRoster({ employees: rows }, skillNames);
   if (v.errorCount) throw new Error('Demo roster has errors: ' + JSON.stringify(v.rows.flatMap((r) => r.errors)));
   await saveRoster(cycle.id, v, 'demo');
   await initiateCycle(cycle.id);

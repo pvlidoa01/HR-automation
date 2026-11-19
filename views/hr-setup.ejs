@@ -9,7 +9,7 @@
 
 <div class="card">
   <h3>1. Fill in the employee list</h3>
-  <p class="small">Download the template, fill in one row per person, and name a head for each department. Skills come from the dropdown; a new skill name is added to the list.</p>
+  <p class="small">Download the template and fill in one row per person reviewed, with their manager. The manager writes the review and the manager's own manager confirms it; the reporting lines also build the organisation tree. Heads who are not reviewed don't need a row. Skills come from the dropdown; a new skill name is added to the list.</p>
   <a class="btn" href="/hr/template.xlsx">Download Excel template</a>
 </div>
 
@@ -32,11 +32,11 @@
     <% } else { %>
       <div class="notice error">
         <strong><%= preview.errorCount %> problem(s) found. Nothing was saved.</strong> Fix them in Excel and upload again.
-        <% if (preview.departmentErrors.length) { %><ul><% preview.departmentErrors.forEach(e => { %><li><%= e %></li><% }) %></ul><% } %>
+        <% if (preview.structureErrors.length) { %><ul><% preview.structureErrors.forEach(e => { %><li><%= e %></li><% }) %></ul><% } %>
       </div>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Row</th><th>Employee</th><th>Department / position</th><th>Seniority</th><th>Reviewer</th><th>Skills</th><th>Problems</th></tr></thead>
+          <thead><tr><th>Row</th><th>Employee</th><th>Department / position</th><th>Seniority</th><th>Manager</th><th>Skills</th><th>Problems</th></tr></thead>
           <tbody>
             <% preview.rows.forEach(r => { %>
               <tr class="<%= r.errors.length ? 'has-error' : '' %>">
@@ -65,10 +65,18 @@
   <% if (!saved.length) { %>
     <p class="muted">No list saved yet.</p>
   <% } else { %>
-    <p class="small"><%= saved.length %> people, <%= new Set(saved.map(r => r.reviewer_email)).size %> reviewers, <%= departments.length %> departments.</p>
+    <p class="small"><%= saved.length %> people, <%= new Set(saved.map(r => r.reviewer_email)).size %> managers, <%= departments.length %> departments.</p>
+    <h3 style="margin-top:12px">Organisation</h3>
+    <p class="small muted">Check the reporting lines: the top level should be the heads. Open a person to see their direct reports.</p>
+    <div class="org-tree">
+      <% roots.forEach(node => { %>
+        <%- include('partials/org-node', { node, mode: 'hr', cycleOpen: false, isHrUser: true, STATUS_LABELS, csrfToken, user, noOpen: true }) %>
+      <% }) %>
+    </div>
+    <h3 style="margin-top:16px">Full list</h3>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Employee</th><th>Department / position</th><th>Seniority</th><th>Reviewer</th><th>Skill 1 · 2 · 3</th></tr></thead>
+        <thead><tr><th>Employee</th><th>Department / position</th><th>Seniority</th><th>Manager</th><th>Skill 1 · 2 · 3</th></tr></thead>
         <tbody>
           <% saved.forEach(r => { %>
             <tr>
@@ -82,16 +90,12 @@
         </tbody>
       </table>
     </div>
-    <h3 style="margin-top:16px">Department heads</h3>
-    <ul>
-      <% departments.forEach(d => { %><li><%= d.name %>: <%= d.head_name ? `${d.head_name} (${d.head_email})` : 'no head' %></li><% }) %>
-    </ul>
   <% } %>
 </div>
 
 <div class="card">
   <h3>4. Initiate the review cycle</h3>
-  <p class="small">Each manager gets a review space with only their own reports. No emails are sent: share the app link with the managers yourself.</p>
+  <p class="small">Each manager gets a review space with only their own reports, and (if turned on under HR → Emails) an email with their list and the deadline.</p>
   <div class="btn-row">
     <form method="post" action="/hr/cycles/<%= cycle.id %>/initiate">
       <input type="hidden" name="_csrf" value="<%= csrfToken %>">

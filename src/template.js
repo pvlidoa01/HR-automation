@@ -1,6 +1,6 @@
 // Builds the Excel template HR fills in for a cycle.
 import ExcelJS from 'exceljs';
-import { EMPLOYEE_COLUMNS, DEPARTMENT_COLUMNS } from './roster.js';
+import { EMPLOYEE_COLUMNS } from './roster.js';
 import { SENIORITIES } from './shared/framework.js';
 
 export async function buildTemplate(skillNames) {
@@ -13,13 +13,13 @@ export async function buildTemplate(skillNames) {
     'How to fill in this file',
     '',
     'Employees sheet: one row per person reviewed in this cycle.',
-    '  - Employee email and Reviewer email must be their Microsoft work emails; that is how people sign in.',
+    '  - Manager = the person the employee reports to. The manager writes the review, and the manager\'s own manager',
+    '    confirms it. The reporting lines also build the organisation tree in the app.',
+    '  - Heads who report to the CEO and are not reviewed don\'t need a row: they appear at the top of the tree.',
+    '  - Employee email and Manager email must be their Microsoft work emails; that is how people sign in.',
     '  - Seniority: Junior, Mid, Senior, Lead, Head or VP (pick from the dropdown).',
     '  - Skill 1, 2 and 3: pick from the dropdown. Skill 1 is the most important one (it has a higher bar for Senior and Head).',
     '    A skill name that is not in the list is added to the app as a new skill when you upload.',
-    '',
-    'Departments sheet: one row per department, with the head who can read that department\'s reviews.',
-    '  - Use exactly the same department names as in the Employees sheet.',
     '',
     'Upload the file on the cycle\'s set-up page. The app shows any problems before anything is saved.',
   ].forEach((line, i) => {
@@ -30,9 +30,6 @@ export async function buildTemplate(skillNames) {
   const emp = wb.addWorksheet('Employees', { views: [{ state: 'frozen', ySplit: 1 }] });
   emp.columns = EMPLOYEE_COLUMNS.map((c) => ({ header: c.header, key: c.key, width: c.key.startsWith('skill') ? 34 : 24 }));
 
-  const dep = wb.addWorksheet('Departments', { views: [{ state: 'frozen', ySplit: 1 }] });
-  dep.columns = DEPARTMENT_COLUMNS.map((c) => ({ header: c.header, key: c.key, width: 28 }));
-
   const lists = wb.addWorksheet('Lists');
   lists.getColumn(1).width = 14;
   lists.getColumn(2).width = 48;
@@ -41,7 +38,7 @@ export async function buildTemplate(skillNames) {
   SENIORITIES.forEach((s, i) => { lists.getCell(`A${i + 2}`).value = s; });
   skillNames.forEach((s, i) => { lists.getCell(`B${i + 2}`).value = s; });
 
-  for (const ws of [emp, dep, lists]) {
+  for (const ws of [emp, lists]) {
     ws.getRow(1).font = { bold: true };
     ws.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEFF3F6' } };
   }

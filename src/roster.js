@@ -1,11 +1,13 @@
 // Reading and checking the employee list HR uploads for a cycle.
 //
-// Excel template (scripts/make-template.js):
-//   Sheet "Employees":   Employee name | Employee email | Department | Position | Seniority |
-//                        Reviewer name | Reviewer email | Skill 1 | Skill 2 | Skill 3
-//   Sheet "Departments": Department | Head name | Head email
+// Excel template (src/template.js):
+//   Sheet "Employees": Employee name | Employee email | Department | Position | Seniority |
+//                      Manager name | Manager email | Skill 1 | Skill 2 | Skill 3
+// The manager is the person's reviewer, and the reporting lines build the organisation tree.
+// Managers who are not reviewed themselves (the heads) don't need a row.
 import ExcelJS from 'exceljs';
 import { SENIORITIES } from './shared/framework.js';
+import { findLoops } from './org.js';
 
 export const EMPLOYEE_COLUMNS = [
   { key: 'employeeName', header: 'Employee name' },
@@ -13,16 +15,11 @@ export const EMPLOYEE_COLUMNS = [
   { key: 'department', header: 'Department' },
   { key: 'position', header: 'Position' },
   { key: 'seniority', header: 'Seniority' },
-  { key: 'reviewerName', header: 'Reviewer name' },
-  { key: 'reviewerEmail', header: 'Reviewer email' },
+  { key: 'reviewerName', header: 'Manager name', aliases: ['Reviewer name'] },
+  { key: 'reviewerEmail', header: 'Manager email', aliases: ['Reviewer email'] },
   { key: 'skill1', header: 'Skill 1' },
   { key: 'skill2', header: 'Skill 2' },
   { key: 'skill3', header: 'Skill 3' },
-];
-export const DEPARTMENT_COLUMNS = [
-  { key: 'department', header: 'Department' },
-  { key: 'headName', header: 'Head name' },
-  { key: 'headEmail', header: 'Head email' },
 ];
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -46,7 +43,7 @@ function readSheet(sheet, columns) {
   const colIndex = {};
   headerRow.eachCell((cell, col) => {
     const h = key(cellText(cell));
-    const match = columns.find((c) => key(c.header) === h);
+    const match = columns.find((c) => [c.header, ...(c.aliases || [])].some((x) => key(x) === h));
     if (match) colIndex[match.key] = col;
   });
   const missing = columns.filter((c) => !colIndex[c.key]).map((c) => c.header);
@@ -64,38 +61,28 @@ function readSheet(sheet, columns) {
   return { rows, missing };
 }
 
-/** Parses the uploaded workbook. Returns { employees, departments, fileErrors }. */
+/** Parses the uploaded workbook. Returns { employees, fileErrors }. */
 export async function parseRoster(buffer) {
   const wb = new ExcelJS.Workbook();
   try {
     await wb.xlsx.load(buffer);
   } catch {
-    return { employees: [], departments: [], fileErrors: ["This file can't be read. Upload the .xlsx template filled in."] };
+    return { employees: [], fileErrors: ["This file can't be read. Upload the .xlsx template filled in."] };
   }
   const fileErrors = [];
-  const findSheet = (name) => wb.worksheets.find((s) => key(s.name) === key(name));
-  const empSheet = findSheet('Employees') || wb.worksheets[0];
-  if (!empSheet) return { employees: [], departments: [], fileErrors: ['The file has no sheets.'] };
+  const empSheet = wb.worksheets.find((s) => key(s.name) === 'employees') || wb.worksheets[0];
+  if (!empSheet) return { employees: [], fileErrors: ['The file has no sheets.'] };
   const emp = readSheet(empSheet, EMPLOYEE_COLUMNS);
   if (emp.missing.length) fileErrors.push(`Sheet "${empSheet.name}" is missing these columns: ${emp.missing.join(', ')}.`);
-  let departments = [];
-  const depSheet = findSheet('Departments');
-  if (depSheet) {
-    const dep = readSheet(depSheet, DEPARTMENT_COLUMNS);
-    if (dep.missing.length) fileErrors.push(`Sheet "Departments" is missing these columns: ${dep.missing.join(', ')}.`);
-    departments = dep.rows;
-  } else {
-    fileErrors.push('The sheet "Departments" is missing. Add it to name a head for each department.');
-  }
   if (!fileErrors.length && !emp.rows.length) fileErrors.push('The Employees sheet has no rows.');
-  return { employees: emp.rows, departments, fileErrors };
+  return { employees: emp.rows, fileErrors };
 }
 
 /**
  * Checks parsed rows. `skillNames` is the current skill list.
  * Returns rows annotated with errors/warnings, plus summary lists.
  */
-export function validateRoster({ employees, departments }, skillNames) {
+export function validateRoster({ employees }, skillNames) {
   const known = new Map(skillNames.map((n) => [key(n), n]));
   const seenEmployees = new Map();
   const namesByEmail = new Map();
@@ -112,10 +99,10 @@ export function validateRoster({ employees, departments }, skillNames) {
     if (!r.position) errors.push('Position is missing.');
     const seniority = SENIORITIES.find((s) => key(s) === key(r.seniority));
     if (!seniority) errors.push(`Seniority must be one of ${SENIORITIES.join(', ')}${r.seniority ? ` (found "${r.seniority}")` : ''}.`);
-    if (!r.reviewerName) errors.push('Reviewer name is missing.');
-    if (!reviewerEmail) errors.push('Reviewer email is missing.');
+    if (!r.reviewerName) errors.push('Manager name is missing.');
+    if (!reviewerEmail) errors.push('Manager email is missing.');
     else if (!EMAIL_RE.test(reviewerEmail)) errors.push(`"${r.reviewerEmail}" is not a valid email.`);
-    if (email && reviewerEmail && email === reviewerEmail) errors.push('An employee cannot be their own reviewer.');
+    if (email && reviewerEmail && email === reviewerEmail) errors.push('An employee cannot be their own manager.');
     if (email) {
       if (seenEmployees.has(email)) errors.push(`This employee is already listed in row ${seenEmployees.get(email)}.`);
       else seenEmployees.set(email, r.rowNumber);
@@ -150,53 +137,14 @@ export function validateRoster({ employees, departments }, skillNames) {
     };
   });
 
-  const usedDepartments = new Map();
-  for (const r of rows) if (r.department && !usedDepartments.has(key(r.department))) usedDepartments.set(key(r.department), r.department);
+  // Reporting lines must not go round in a circle (A manages B and B manages A).
+  const edges = new Map(rows.filter((r) => r.employeeEmail && r.reviewerEmail).map((r) => [r.employeeEmail, r.reviewerEmail]));
+  const structureErrors = findLoops(edges).map((loop) => `Reporting lines go round in a circle: ${[...loop, loop[0]].join(' → ')}. Fix the manager of one of them.`);
 
-  const departmentErrors = [];
-  const departmentWarnings = [];
-  const heads = new Map();
-  const listedDepartments = new Set();
-  for (const d of departments) {
-    if (!d.department) continue;
-    const k = key(d.department);
-    const headEmail = d.headEmail.toLowerCase();
-    if (listedDepartments.has(k)) {
-      departmentErrors.push(`Department "${d.department}" is listed twice in the Departments sheet.`);
-      continue;
-    }
-    listedDepartments.add(k);
-    if (!usedDepartments.has(k)) {
-      departmentWarnings.push(`Department "${d.department}" in the Departments sheet has no employees in this cycle. It is ignored.`);
-      continue;
-    }
-    if (headEmail && !EMAIL_RE.test(headEmail)) {
-      departmentErrors.push(`Head email "${d.headEmail}" for "${d.department}" is not valid.`);
-      continue;
-    }
-    if (headEmail && !d.headName) {
-      departmentErrors.push(`Head name for "${d.department}" is missing.`);
-      continue;
-    }
-    if (headEmail) {
-      heads.set(k, { name: usedDepartments.get(k), headName: d.headName, headEmail });
-      if (namesByEmail.has(headEmail) && key(namesByEmail.get(headEmail)) !== key(d.headName)) {
-        departmentWarnings.push(`${headEmail} appears with two names. "${namesByEmail.get(headEmail)}" is used.`);
-      } else if (!namesByEmail.has(headEmail)) namesByEmail.set(headEmail, d.headName);
-    }
-  }
-  const departmentList = [...usedDepartments.entries()].map(([k, name]) => {
-    const h = heads.get(k);
-    if (!h) departmentWarnings.push(`"${name}" has no department head. Only the managers, HR and the CEO will see its reviews.`);
-    return { name, headName: h?.headName || null, headEmail: h?.headEmail || null };
-  });
-
-  const errorCount = rows.reduce((n, r) => n + r.errors.length, 0) + departmentErrors.length;
+  const errorCount = rows.reduce((n, r) => n + r.errors.length, 0) + structureErrors.length;
   return {
     rows,
-    departments: departmentList,
-    departmentErrors,
-    departmentWarnings,
+    structureErrors,
     newSkills: [...newSkills.values()],
     namesByEmail,
     errorCount,

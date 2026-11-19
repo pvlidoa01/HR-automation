@@ -1,15 +1,25 @@
 import express from 'express';
-import { query } from '../db.js';
+import { query, one } from '../db.js';
 import { loadReviewWithAccess, parseId } from '../access.js';
 import { getReviewDetail, getChangeLog, saveReview, versionOf, STATUS_LABELS } from '../reviews.js';
 import { flash } from '../app.js';
+import { requestChange } from '../cycles.js';
+import { notifySubmitted, notifyChangeRequested, safely } from '../notify.js';
 import { LEVELS, LEVEL_KEYS } from '../shared/framework.js';
 
 const notFound = (res) => res.status(404).render('error', { title: 'Not found', message: "This review doesn't exist or you don't have access to it." });
 
 async function renderReview(res, id, access, extra = {}) {
   const detail = extra.detail || (await getReviewDetail(id));
+  const openRequest = await one(
+    `SELECT q.*, u.name AS requester_name FROM change_requests q JOIN users u ON u.id = q.requested_by
+      WHERE q.review_id = $1 AND q.status = 'open'`,
+    [id],
+  );
+  const confirmer = extra.confirmerId ? await one('SELECT name FROM users WHERE id = $1', [extra.confirmerId]) : null;
   res.status(extra.status || 200).render('review', {
+    openRequest: access.canSeeChangeLog ? openRequest : null,
+    confirmerName: confirmer?.name || null,
     title: `${detail.review.employee_name} · ${detail.review.cycle_name}`,
     ...detail,
     access,
@@ -28,15 +38,15 @@ export function reviewRoutes() {
   router.get('/reviews/:id', async (req, res) => {
     const id = parseId(req.params.id);
     if (!id) return notFound(res);
-    const { access } = await loadReviewWithAccess(req.user, id);
+    const { access, confirmerId } = await loadReviewWithAccess(req.user, id);
     if (!access.canView) return notFound(res);
-    return renderReview(res, id, access);
+    return renderReview(res, id, access, { confirmerId });
   });
 
   router.post('/reviews/:id', async (req, res) => {
     const id = parseId(req.params.id);
     if (!id) return notFound(res);
-    const { access } = await loadReviewWithAccess(req.user, id);
+    const { access, confirmerId } = await loadReviewWithAccess(req.user, id);
     if (!access.canView) return notFound(res);
     if (!access.canEdit) {
       flash(req, 'error', 'This review can no longer be changed.');
@@ -46,11 +56,10 @@ export function reviewRoutes() {
     if (!req.body || typeof req.body.rating !== 'object' || !req.body.version) {
       return res.status(400).render('error', { title: 'Not saved', message: 'The form was incomplete. Reload the page and try again.' });
     }
-    const action = req.body.action === 'submit' ? 'submit' : 'save';
+    // Only the manager or the second level can submit; HR saves on nobody's behalf.
+    const action = req.body.action === 'submit' && access.canSubmit ? 'submit' : 'save';
     const detail = await getReviewDetail(id);
-    // HR editing someone else's review does not submit on the manager's behalf.
-    const effectiveAction = access.role === 'hr' && detail.review.reviewer_id !== req.user.id ? 'save' : action;
-    const result = await saveReview(req.user, detail, req.body, effectiveAction, access.role);
+    const result = await saveReview(req.user, detail, req.body, action, access.role, confirmerId);
     if (result.locked) {
       flash(req, 'error', result.errors[0]);
       return res.redirect(`/reviews/${id}`);
@@ -70,14 +79,40 @@ export function reviewRoutes() {
         status: result.conflict ? 409 : 422,
         errors: result.errors,
         version: String(req.body.version),
+        confirmerId,
       });
     }
-    if (effectiveAction === 'submit') {
-      flash(req, 'success', `Review for ${detail.review.employee_name} submitted.`);
-      return res.redirect(access.role === 'reviewer' ? '/team' : `/reviews/${id}`);
+    if (result.step) {
+      await safely(notifySubmitted(id, result.status === 'closed' ? (result.step === 'confirmer' ? 'confirmer' : 'final') : 'reviewer'));
+      const msg = result.status === 'closed'
+        ? `Review for ${detail.review.employee_name} is complete.`
+        : `Review for ${detail.review.employee_name} submitted. It now goes to your manager to confirm.`;
+      flash(req, 'success', msg);
+      return res.redirect('/team');
     }
     flash(req, 'success', 'Saved.');
     return res.redirect(`/reviews/${id}`);
+  });
+
+  router.post('/reviews/:id/request-change', async (req, res) => {
+    const id = parseId(req.params.id);
+    if (!id) return notFound(res);
+    const { access } = await loadReviewWithAccess(req.user, id);
+    if (!access.canView) return notFound(res);
+    const back = String(req.body?.back || '') === 'team' ? '/team' : `/reviews/${id}`;
+    if (!access.canRequestChange) {
+      flash(req, 'error', 'You cannot ask to reopen this review.');
+      return res.redirect(back);
+    }
+    const reason = String(req.body?.reason ?? '').trim().slice(0, 2000);
+    if (reason.length < 5) {
+      flash(req, 'error', 'Write a short explanation of what you want to change, so HR can decide.');
+      return res.redirect(back);
+    }
+    const result = await requestChange(id, req.user.id, reason);
+    if (result.ok) await safely(notifyChangeRequested(id, req.user, reason));
+    flash(req, result.ok ? 'success' : 'error', result.ok ? 'Request sent to HR. You will be told when they decide.' : result.error);
+    return res.redirect(back);
   });
 
   router.post('/reviews/:id/read', async (req, res) => {

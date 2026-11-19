@@ -6,7 +6,8 @@
   const levelName = (v) => (v ? `${levelLabel(v)} (${v})` : '—');
   const diffClass = (d) => (d == null ? '' : d > 0 ? 'pos' : d === 0 ? 'zero' : 'neg');
   const diffText = (d) => (d == null ? '' : d > 0 ? `+${d}` : `${d}`);
-  const hrEditingOthers = access.role === 'hr' && r.reviewer_id !== user.id;
+  const hrEditingOthers = access.role === 'hr' && !access.canSubmit;
+  const confirmStep = access.canSubmit && r.status === 'submitted';
   const pageData = {
     seniority: r.seniority,
     bar: { [r.seniority]: Object.fromEntries(dimensions.map(d => [d.key, d.expected])) },
@@ -21,9 +22,8 @@
     <% if (r.cycle_status === 'released') { %><span class="badge cycle-released">Released</span><% } %>
   </div>
   <div class="btn-row">
-    <% if (access.role === 'reviewer') { %><a class="btn" href="/team">Back to my team</a><% } %>
+    <% if (access.role === 'reviewer' || access.role === 'confirmer') { %><a class="btn" href="/team">Back to my team</a><% } %>
     <% if (access.role === 'hr' || access.role === 'ceo') { %><a class="btn" href="/cycles/<%= r.cycle_id %>">Back to cycle</a><% } %>
-    <% if (access.role === 'dept_head') { %><a class="btn" href="/department">Back to my department</a><% } %>
   </div>
 </div>
 
@@ -31,10 +31,24 @@
   <div class="notice error" role="alert"><strong>Not saved.</strong><ul><% errors.forEach(e => { %><li><%= e %></li><% }) %></ul></div>
 <% } %>
 <% if (hrEditingOthers && edit) { %>
-  <div class="notice info">You are editing as HR. Every change is logged and visible to <%= r.reviewer_name %>.</div>
+  <div class="notice info">You are editing as HR. Every change is logged and visible to <%= r.reviewer_name %><%= confirmerName ? ` and ${confirmerName}` : '' %>.</div>
 <% } %>
 <% if (access.role === 'reviewer' && !edit && r.cycle_status === 'open') { %>
-  <div class="notice info">Submitted <%= fmtDateTime(r.submitted_at) %>. HR can reopen it if you need to change something.</div>
+  <div class="notice info">
+    <% if (r.status === 'submitted') { %>You submitted it <%= fmtDateTime(r.submitted_at) %>. <%= confirmerName %> now confirms it or adjusts it.<% } else { %>Completed <%= fmtDateTime(r.closed_at) %>.<% } %>
+    To change something, ask HR to reopen it.
+  </div>
+<% } %>
+<% if (access.role === 'confirmer' && r.cycle_status === 'open') { %>
+  <div class="notice info">
+    <% if (r.status === 'submitted') { %><%= r.reviewer_name %> submitted this review <%= fmtDateTime(r.submitted_at) %>. Read it, adjust it if needed, then confirm it: it becomes final once you confirm. Your changes are logged and visible to <%= r.reviewer_name %>.
+    <% } else if (r.status === 'draft') { %>HR has reopened this review. You and <%= r.reviewer_name %> can both edit it; <%= r.reviewer_name %> submits it again, then you confirm it.
+    <% } else { %>You confirmed it <%= fmtDateTime(r.closed_at) %>. To change something, ask HR to reopen it.<% } %>
+  </div>
+<% } %>
+<% if (openRequest) { %>
+  <div class="notice info"><strong><%= openRequest.requester_name %> asked HR to reopen this review</strong> (<%= fmtDateTime(openRequest.created_at) %>):<br><%= openRequest.reason %>
+    <% if (access.role === 'hr') { %><br><a href="/hr/requests">Approve or decline</a><% } %></div>
 <% } %>
 <% if (access.role === 'later_manager') { %>
   <div class="notice info">Written by <%= r.reviewer_name %> in an earlier cycle. You can read it but not change it.</div>
@@ -45,7 +59,8 @@
     <div><span>Position</span><%= r.position %></div>
     <div><span>Department</span><%= r.department %></div>
     <div><span>Seniority</span><%= r.seniority %></div>
-    <div><span>Reviewer</span><%= r.reviewer_name %></div>
+    <div><span>Manager (writes it)</span><%= r.reviewer_name %></div>
+    <% if (confirmerName) { %><div><span>Confirms it</span><%= confirmerName %></div><% } %>
     <% if (r.deadline && r.cycle_status === 'open') { %><div><span>Deadline</span><%= fmtDate(r.deadline) %></div><% } %>
   </div>
 </div>
@@ -151,23 +166,38 @@
     <% if (edit) { %>
       <div class="sticky-actions">
         <div class="btn-row">
-          <% if (hrEditingOthers) { %>
+          <% if (!access.canSubmit) { %>
             <button class="btn primary" type="submit" name="action" value="save">Save changes</button>
+          <% } else if (confirmStep) { %>
+            <button class="btn" type="submit" name="action" value="save">Save changes</button>
+            <button class="btn primary" type="submit" name="action" value="submit">Confirm review</button>
+            <span class="small muted">Confirming makes the review final. After that only HR can reopen it.</span>
           <% } else { %>
             <button class="btn" type="submit" name="action" value="save">Save draft</button>
             <button class="btn primary" type="submit" name="action" value="submit">Submit review</button>
-            <span class="small muted">Submitting locks the review. HR can reopen it.</span>
+            <span class="small muted"><%= confirmerName ? `Submitting locks it for you and sends it to ${confirmerName} to confirm.` : 'Submitting completes the review.' %> To change it later, ask HR.</span>
           <% } %>
         </div>
       </div>
       </form>
     <% } %>
 
-    <% if (access.role === 'hr' && r.status === 'submitted' && r.cycle_status === 'open') { %>
+    <% if (access.role === 'hr' && ['submitted', 'closed'].includes(r.status) && r.cycle_status === 'open') { %>
       <form method="post" action="/hr/reviews/<%= r.id %>/reopen" style="margin-top:12px">
         <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-        <button class="btn" type="submit">Reopen for <%= r.reviewer_name %></button>
+        <button class="btn" type="submit">Reopen for <%= r.reviewer_name %><%= confirmerName ? ` and ${confirmerName}` : '' %></button>
       </form>
+    <% } %>
+    <% if (access.canRequestChange && !openRequest) { %>
+      <h2>Need to change something?</h2>
+      <div class="card">
+        <form method="post" action="/reviews/<%= r.id %>/request-change">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <label for="reason" class="small">Ask HR to reopen this review. Explain briefly what you want to change and why.</label>
+          <textarea id="reason" name="reason" required minlength="5" maxlength="2000"></textarea>
+          <button class="btn" type="submit" style="margin-top:8px">Send request to HR</button>
+        </form>
+      </div>
     <% } %>
 
     <% if (access.isEmployee) { %>

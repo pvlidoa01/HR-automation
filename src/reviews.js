@@ -96,14 +96,17 @@ export function versionOf(review) {
 }
 
 /**
- * Saves the review form. `action` is 'save' or 'submit'; `role` comes from access.js.
- * Logged: every change by someone other than the reviewer (HR calibration), and every change
- * to a review that is already submitted.
- * Returns { ok, errors, conflict }.
+ * Saves the review form. `action` is 'save' or 'submit'; `role` comes from access.js;
+ * `confirmerId` is the second level (the reviewer's own manager), or null.
+ * A submit by the reviewer moves the review to 'submitted' (or 'closed' when there is no second
+ * level); a submit by the second level closes it. Any other submit is saved as a normal save.
+ * Logged: every change by someone other than the reviewer, and every change after the first submit.
+ * Returns { ok, errors, conflict, locked, step }.
  */
-export async function saveReview(user, detail, body, action, role) {
+export async function saveReview(user, detail, body, action, role, confirmerId = null) {
   const { review, dimensions } = detail;
-  const logChanges = user.id !== review.reviewer_id || review.status === 'submitted';
+  const reviewerEditing = user.id === review.reviewer_id && ['not_started', 'draft'].includes(review.status) && !review.first_submitted_at;
+  const logChanges = !reviewerEditing;
   const ratingsIn = body.rating || {};
   const feedbackIn = body.feedback || {};
   const checklistIn = body.chk || {};
@@ -123,17 +126,10 @@ export async function saveReview(user, detail, body, action, role) {
   const actionPlan = cleanText(body.action_plan);
   const hrPoints = cleanText(body.hr_action_points);
 
-  const errors = [];
-  if (action === 'submit') {
-    const missing = updates.filter((u) => u.rating == null).map((u) => u.label);
-    if (missing.length) errors.push(`Add a rating for: ${missing.join(', ')}.`);
-  }
-  if (errors.length) return { ok: false, errors };
-
   return tx(async (client) => {
     // Re-check on locked rows so a release, submit or someone else's save can't slip in between.
     const cycleStatus = (await client.query('SELECT status FROM cycles WHERE id = $1 FOR SHARE', [review.cycle_id])).rows[0]?.status;
-    const current = (await client.query('SELECT status, updated_at FROM reviews WHERE id = $1 FOR UPDATE', [review.id])).rows[0];
+    const current = (await client.query('SELECT status, updated_at, first_submitted_at FROM reviews WHERE id = $1 FOR UPDATE', [review.id])).rows[0];
     if (!current || !canEditNow(role, current, cycleStatus)) {
       return { ok: false, errors: ['This review can no longer be changed.'], locked: true };
     }
@@ -143,6 +139,15 @@ export async function saveReview(user, detail, body, action, role) {
         conflict: true,
         errors: ['Someone else saved this review after you opened it. Your changes are below but were NOT saved. Reload the page to see the latest version, then make your changes again.'],
       };
+    }
+    let step = null;
+    if (action === 'submit') {
+      if (user.id === review.reviewer_id && ['not_started', 'draft'].includes(current.status)) step = 'reviewer';
+      else if (confirmerId && user.id === confirmerId && current.status === 'submitted') step = 'confirmer';
+    }
+    if (step) {
+      const missing = updates.filter((u) => u.rating == null).map((u) => u.label);
+      if (missing.length) return { ok: false, errors: [`Add a rating for: ${missing.join(', ')}.`] };
     }
     for (const u of updates) {
       await client.query(
@@ -168,20 +173,22 @@ export async function saveReview(user, detail, body, action, role) {
       if ((review.action_plan || '') !== actionPlan) await log(client, review.id, user.id, 'Action plan', review.action_plan, actionPlan);
       if ((review.hr_action_points || '') !== hrPoints) await log(client, review.id, user.id, 'HR action points', review.hr_action_points, hrPoints);
     }
-    let status = review.status;
-    if (action === 'submit') status = 'submitted';
+    let status = current.status;
+    if (step === 'reviewer') status = confirmerId ? 'submitted' : 'closed';
+    else if (step === 'confirmer') status = 'closed';
     else if (status === 'not_started') status = 'draft';
     await client.query(
       `UPDATE reviews SET action_plan = $2, hr_action_points = $3, status = $4,
-              submitted_at = CASE WHEN $4 = 'submitted' AND submitted_at IS NULL THEN now() ELSE submitted_at END,
+              submitted_at = CASE WHEN $5 THEN now() ELSE submitted_at END,
+              first_submitted_at = CASE WHEN $5 THEN COALESCE(first_submitted_at, now()) ELSE first_submitted_at END,
+              closed_at = CASE WHEN $4 = 'closed' AND status <> 'closed' THEN now() ELSE closed_at END,
               updated_at = now()
         WHERE id = $1`,
-      [review.id, actionPlan, hrPoints, status],
+      [review.id, actionPlan, hrPoints, status, step === 'reviewer'],
     );
-    if (action === 'submit' && review.status !== 'submitted') {
-      await log(client, review.id, user.id, 'Submitted', null, null);
-    }
-    return { ok: true, errors: [] };
+    if (step === 'reviewer') await log(client, review.id, user.id, confirmerId ? 'Submitted by the manager' : 'Submitted (final)', null, null);
+    if (step === 'confirmer') await log(client, review.id, user.id, 'Confirmed (final)', null, null);
+    return { ok: true, errors: [], step, status };
   });
 }
 
@@ -205,7 +212,8 @@ export async function log(client, reviewId, userId, field, oldValue, newValue) {
 export async function listReviews(where, params) {
   const rows = await many(
     `SELECT r.id, r.cycle_id, r.employee_id, r.reviewer_id, r.department, r.position, r.seniority, r.status,
-            r.submitted_at, r.employee_read_at, r.updated_at,
+            r.submitted_at, r.first_submitted_at, r.closed_at, r.employee_read_at, r.updated_at,
+            (SELECT q.id FROM change_requests q WHERE q.review_id = r.id AND q.status = 'open') AS open_request_id,
             e.name AS employee_name, e.email AS employee_email,
             m.name AS reviewer_name, m.email AS reviewer_email,
             c.name AS cycle_name, c.status AS cycle_status, c.talent_bar, c.deadline,
@@ -230,5 +238,6 @@ export async function listReviews(where, params) {
 export const STATUS_LABELS = {
   not_started: 'Not started',
   draft: 'In progress',
-  submitted: 'Submitted',
+  submitted: 'Waiting for confirmation',
+  closed: 'Completed',
 };

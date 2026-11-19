@@ -6,6 +6,26 @@
   </div>
 </div>
 
+<% if (openRequests) { %>
+  <div class="card">
+    <h3>Requests to reopen</h3>
+    <p><strong><%= openRequests %></strong> request<%= openRequests === 1 ? '' : 's' %> from managers waiting for your decision.</p>
+    <a class="btn primary" href="/hr/requests">Review requests</a>
+  </div>
+<% } %>
+
+<% if (toConfirm.length) { %>
+  <div class="card">
+    <h3>Reviews to confirm</h3>
+    <p class="small muted">Your managers submitted these. Read them, adjust if needed, and confirm. They become final once you confirm.</p>
+    <ul>
+      <% toConfirm.forEach(t => { %>
+        <li><a href="/reviews/<%= t.id %>"><%= t.employee_name %></a> <span class="muted small">· written by <%= t.reviewer_name %> · <%= t.cycle_name %></span></li>
+      <% }) %>
+    </ul>
+  </div>
+<% } %>
+
 <% if (openTeam.length) { %>
   <% openTeam.forEach(g => { %>
     <div class="card">
@@ -13,7 +33,7 @@
       <% if (g.todo) { %>
         <p><strong><%= g.todo %></strong> of <%= g.total %> reviews still to submit<% if (g.deadline) { %>, due <strong><%= fmtDate(g.deadline) %></strong><% } %>.</p>
       <% } else { %>
-        <p>All <%= g.total %> reviews submitted. HR will now calibrate them.</p>
+        <p>All <%= g.total %> reviews submitted.</p>
       <% } %>
       <a class="btn primary" href="/team">Open my team</a>
     </div>
@@ -61,13 +81,6 @@
       <h3>My team</h3>
       <p class="muted">Reviews you wrote in past cycles.</p>
       <a class="btn" href="/team">Open my team</a>
-    </div>
-  <% } %>
-  <% if (heads.length) { %>
-    <div class="card">
-      <h3>My department</h3>
-      <p class="muted">You are department head for <%= [...new Set(heads.map(h => h.name))].join(', ') %>.</p>
-      <a class="btn" href="/department">Open my department</a>
     </div>
   <% } %>
 </div>

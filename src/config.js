@@ -22,6 +22,9 @@ export const config = {
     // Optional, e.g. "r3robotics.ai". When set, only these email domains can sign in.
     allowedDomains: (env.MS_ALLOWED_EMAIL_DOMAINS || '').split(',').map((d) => d.trim().toLowerCase()).filter(Boolean),
   },
+  // Mailbox the automatic emails are sent from, e.g. performance-review@r3robotics.ai.
+  // Needs the Microsoft secrets above plus IT's permission for the app to send from it.
+  mailFrom: (env.MAIL_FROM || '').trim().toLowerCase(),
 };
 
 config.microsoftEnabled = !!(config.microsoft.tenantId && config.microsoft.clientId && config.microsoft.clientSecret);

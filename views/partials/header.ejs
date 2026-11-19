@@ -18,8 +18,8 @@
         <a href="/" class="<%= path === '/' ? 'active' : '' %>">Home</a>
         <a href="/me" class="<%= path === '/me' ? 'active' : '' %>">My reviews</a>
         <% if (nav.team) { %><a href="/team" class="<%= path === '/team' ? 'active' : '' %>">My team</a><% } %>
-        <% if (nav.department) { %><a href="/department" class="<%= path === '/department' ? 'active' : '' %>">My department</a><% } %>
         <% if (nav.hr) { %><a href="/hr" class="<%= path.startsWith('/hr') || path.startsWith('/cycles') ? 'active' : '' %>">HR</a><% } %>
+        <% if (nav.hr && nav.requests) { %><a href="/hr/requests" class="<%= path === '/hr/requests' ? 'active' : '' %>">Requests <span class="count"><%= nav.requests %></span></a><% } %>
       </nav>
       <div class="who">
         <span><%= user.name %></span>

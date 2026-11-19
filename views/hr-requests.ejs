@@ -1,0 +1,51 @@
+<%- include('partials/header') %>
+<div class="page-head">
+  <div><h1>Requests to reopen</h1><p class="muted">Managers ask here when they want to change a review they already submitted. Approving reopens the review for the manager and their manager.</p></div>
+  <a class="btn" href="/hr">Back to HR</a>
+</div>
+
+<h2>Waiting for you</h2>
+<% if (!open.length) { %>
+  <div class="card empty">No open requests.</div>
+<% } %>
+<% open.forEach(q => { %>
+  <div class="card">
+    <div class="btn-row" style="justify-content:space-between">
+      <h3 style="margin:0"><a href="/reviews/<%= q.review_id %>"><%= q.employee_name %></a> <span class="muted small">· <%= q.cycle_name %> · <%= STATUS_LABELS[q.review_status] %></span></h3>
+      <span class="muted small"><%= fmtDateTime(q.created_at) %></span>
+    </div>
+    <p class="small"><strong><%= q.requester_name %></strong> asks to reopen it:</p>
+    <div class="feedback-read"><%= q.reason %></div>
+    <form method="post" action="/hr/requests/<%= q.id %>/decide" style="margin-top:12px">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <label for="note-<%= q.id %>" class="small">Note for <%= q.requester_name %> (optional)</label>
+      <textarea id="note-<%= q.id %>" name="note" style="min-height:60px"></textarea>
+      <div class="btn-row" style="margin-top:8px">
+        <% if (q.cycle_status === 'open') { %><button class="btn primary" type="submit" name="decision" value="approve">Approve and reopen</button><% } %>
+        <button class="btn" type="submit" name="decision" value="decline">Decline</button>
+      </div>
+    </form>
+  </div>
+<% }) %>
+
+<% if (done.length) { %>
+  <h2>Handled</h2>
+  <div class="card table-wrap" style="padding:0">
+    <table>
+      <thead><tr><th>Employee</th><th>Asked by</th><th>Explanation</th><th>Decision</th></tr></thead>
+      <tbody>
+        <% done.forEach(q => { %>
+          <tr>
+            <td><a href="/reviews/<%= q.review_id %>"><%= q.employee_name %></a><br><span class="muted small"><%= q.cycle_name %></span></td>
+            <td><%= q.requester_name %><br><span class="muted small"><%= fmtDateTime(q.created_at) %></span></td>
+            <td class="small"><%= q.reason %></td>
+            <td><span class="badge <%= q.status === 'approved' ? 'status-closed' : 'status-not_started' %>"><%= q.status === 'approved' ? 'Approved' : 'Declined' %></span>
+              <br><span class="muted small"><%= q.decider_name || '' %> · <%= fmtDateTime(q.decided_at) %></span>
+              <% if (q.hr_note) { %><br><span class="small"><%= q.hr_note %></span><% } %></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+<% } %>
+<%- include('partials/footer') %>

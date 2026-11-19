@@ -1,31 +1,17 @@
 <%- include('partials/header') %>
-<div class="page-head"><div><h1>My team</h1><p class="muted">The people you review. HR and the CEO can read your reviews; your department head can read them once you submit. Employees see theirs only after HR releases the cycle, and never the HR action points.</p></div></div>
+<div class="page-head"><div><h1>My team</h1>
+  <p class="muted">Your direct reports. Open a person to see who reports to them. You write the reviews of your direct reports; when one of your managers submits a review, you confirm it or adjust it before it is final. HR and the CEO can read every review. Employees see theirs only after HR releases the cycle, and never the HR action points.</p>
+</div></div>
 <% if (!groups.length) { %>
   <div class="card empty">You have no reviews to write.</div>
 <% } %>
 <% groups.forEach(g => { %>
   <h2><%= g.name %> <span class="badge cycle-<%= g.status %>"><%= { open: 'Open', released: 'Released' }[g.status] %></span>
     <% if (g.deadline && g.status === 'open') { %><span class="muted small">· due <%= fmtDate(g.deadline) %></span><% } %></h2>
-  <div class="card table-wrap" style="padding:0">
-    <table>
-      <thead><tr><th>Employee</th><th>Position</th><th>Seniority</th><th>Status</th><th>Overall</th><th></th></tr></thead>
-      <tbody>
-        <% g.reviews.forEach(r => { %>
-          <tr>
-            <td><strong><%= r.employee_name %></strong><br><span class="muted small"><%= r.department %></span></td>
-            <td><%= r.position %></td>
-            <td><%= r.seniority %></td>
-            <td><span class="badge status-<%= r.status %>"><%= STATUS_LABELS[r.status] %></span></td>
-            <td><%- include('partials/grade', { code: r.grades.overall }) %></td>
-            <td>
-              <a class="btn small <%= g.status === 'open' && r.status !== 'submitted' ? 'primary' : '' %>" href="/reviews/<%= r.id %>">
-                <%= g.status === 'open' && r.status !== 'submitted' ? (r.status === 'not_started' ? 'Start review' : 'Continue') : 'View' %>
-              </a>
-            </td>
-          </tr>
-        <% }) %>
-      </tbody>
-    </table>
+  <div class="card org-tree">
+    <% g.roots.forEach(node => { %>
+      <%- include('partials/org-node', { node, mode: 'team', cycleOpen: g.status === 'open', isHrUser: false, STATUS_LABELS, csrfToken, user }) %>
+    <% }) %>
   </div>
 <% }) %>
 <% if (earlier.length) { %>
