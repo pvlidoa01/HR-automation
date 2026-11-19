@@ -18,6 +18,7 @@ import {
 } from '../notify.js';
 import { config } from '../config.js';
 import { buildTree } from '../org.js';
+import { parseTypedDate } from '../dates.js';
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -76,9 +77,14 @@ export function hrRoutes() {
 
   router.post('/cycles', async (req, res) => {
     const name = String(req.body.name || '').trim().slice(0, 80);
-    const deadline = /^\d{4}-\d{2}-\d{2}$/.test(req.body.deadline || '') ? req.body.deadline : null;
+    const typedDeadline = String(req.body.deadline || '').trim();
+    const deadline = typedDeadline ? parseTypedDate(typedDeadline) : null;
     if (!name) {
       flash(req, 'error', 'Give the cycle a name, e.g. "H2 2026".');
+      return res.redirect('/hr');
+    }
+    if (typedDeadline && !deadline) {
+      flash(req, 'error', `The deadline "${typedDeadline}" isn't a date I can read. Type it like 06/01/2027 (day first) or 6 Jan 2027, or leave it empty.`);
       return res.redirect('/hr');
     }
     if (await one('SELECT 1 FROM cycles WHERE lower(name) = lower($1)', [name])) {

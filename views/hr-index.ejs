@@ -14,7 +14,7 @@
   <form method="post" action="/hr/cycles" class="inline-form">
     <input type="hidden" name="_csrf" value="<%= csrfToken %>">
     <div class="field"><label for="name">Name</label><input id="name" type="text" name="name" placeholder="H2 2026" required></div>
-    <div class="field"><label for="deadline">Deadline for managers</label><input id="deadline" type="date" name="deadline"></div>
+    <div class="field"><label for="deadline">Deadline for managers</label><input id="deadline" type="text" name="deadline" placeholder="e.g. 06/01/2027" autocomplete="off"></div>
     <button class="btn primary" type="submit">Create cycle</button>
   </form>
 </div>

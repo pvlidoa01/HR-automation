@@ -106,3 +106,17 @@ test('checklist: level counts only when every statement is yes', () => {
 test('checklist: nothing answered gives no suggestion', () => {
   assert.equal(suggestLevel(S, {}), null);
 });
+
+import { parseTypedDate } from '../src/dates.js';
+test('typed deadlines: day first, several spellings, bad dates refused', () => {
+  assert.equal(parseTypedDate('06/01/2027'), '2027-01-06');
+  assert.equal(parseTypedDate('6-1-2027'), '2027-01-06');
+  assert.equal(parseTypedDate('06.01.2027'), '2027-01-06');
+  assert.equal(parseTypedDate('2027-01-06'), '2027-01-06');
+  assert.equal(parseTypedDate('6 Jan 2027'), '2027-01-06');
+  assert.equal(parseTypedDate('23-Nov-2026'), '2026-11-23');
+  assert.equal(parseTypedDate('6 January 2027'), '2027-01-06');
+  assert.equal(parseTypedDate('31/02/2027'), null);
+  assert.equal(parseTypedDate('soon'), null);
+  assert.equal(parseTypedDate(''), null);
+});
