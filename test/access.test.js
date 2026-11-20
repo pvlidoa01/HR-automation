@@ -563,4 +563,68 @@ if (!dbUrl) {
       assert.equal(post.status, 403);
     }
   });
+
+  test('skills from Notion: HR checks, then applies; running cycles keep their questionnaire', async () => {
+    const { config } = await import('../src/config.js');
+    const { readSkillBase, planSkillSync, applySkillSync } = await import('../src/notion.js');
+    const { getReviewDetail } = await import('../src/reviews.js');
+    config.notion.token = 'test-token';
+    const ps = (await pool.query("SELECT notion_page_id FROM skills WHERE name = 'Problem Solving'")).rows[0];
+    assert.ok(ps.notion_page_id, 'seeded skills know their Notion page');
+
+    const c8 = await makeCycle('C8', [['empN', 'N', 'mN']]);
+    await initiateCycle(c8);
+    const before = await getReviewDetail(await reviewId(c8, 'empN'));
+    const oldBasic = before.dimensions.find((d) => d.label === 'Problem Solving').statements.BASIC;
+
+    // A fake Notion: Problem Solving reworded, one new draft skill, one broken page.
+    const rt = (t) => [{ plain_text: t }];
+    const row = (level, text) => ({ type: 'table_row', table_row: { cells: [rt(level), rt(text)] } });
+    const page = (id, title) => ({ object: 'page', id, url: `https://notion.so/${id}`, last_edited_time: '2026-11-20T10:00:00.000Z', properties: { Skill: { type: 'title', title: rt(title) } } });
+    const pages = [page(ps.notion_page_id, 'Problem Solving'), page('11111111111111111111111111111111', 'DRAFT Safety Culture'), page('22222222222222222222222222222222', 'Empty Skill')];
+    const blocks = {
+      [ps.notion_page_id]: [
+        { type: 'heading_3', heading_3: { rich_text: rt('Definition') } },
+        { type: 'callout', callout: { rich_text: rt('Breaks problems down into their drivers.') } },
+        { type: 'table', id: 'tps', has_children: true, table: { has_column_header: true } },
+      ],
+      tps: [row('Level', 'Behavior'), row('POOR', 'Jumps to conclusions'), row('BASIC', 'Breaks down simple problems'), row('', 'Uses data   to check'), row('ADVANCED', 'Connects issues across teams')],
+      '11111111111111111111111111111111': [{ type: 'table', id: 'tsc', has_children: true, table: { has_column_header: false } }],
+      tsc: [row('Basic', 'Follows safety rules'), row('Mastery', 'ignored')],
+      '22222222222222222222222222222222': [{ type: 'paragraph', paragraph: { rich_text: rt('todo') } }],
+    };
+    const fakeFetch = async (url) => {
+      const u = new URL(url);
+      const json = (data) => ({ ok: true, status: 200, json: async () => data, headers: new Map() });
+      if (u.pathname.endsWith('/query')) return json({ results: pages, has_more: false });
+      const id = u.pathname.split('/')[3];
+      return json({ results: blocks[id] || [], has_more: false });
+    };
+    const plan = await planSkillSync(await readSkillBase(fakeFetch));
+    const by = (n) => plan.find((p) => (p.notion?.name || p.app?.name) === n);
+    assert.equal(by('Problem Solving').kind, 'update');
+    assert.deepEqual(by('Problem Solving').notion.levels.BASIC, ['Breaks down simple problems', 'Uses data to check'], 'a row without level joins the level above; spaces cleaned');
+    assert.equal(by('Safety Culture').kind, 'new');
+    assert.equal(by('Safety Culture').notion.draft, true);
+    assert.ok(by('Safety Culture').warnings.some((w) => /unknown level/.test(w)));
+    assert.equal(by('Empty Skill').kind, 'problem', 'a page without statements is never applied');
+    assert.equal(by('Procurement').kind, 'missing', 'skills not in this Notion list are kept, not deleted');
+
+    // HR flow: check page, then apply.
+    const hr = await as('hr');
+    assert.match((await hr.get('/hr')).text, /Check Notion for changes/);
+    assert.equal(await applySkillSync(plan), 2);
+    assert.equal((await pool.query("SELECT count(*)::int AS n FROM skills WHERE name = 'Empty Skill'")).rows[0].n, 0);
+    const after = await getReviewDetail(await reviewId(c8, 'empN'));
+    assert.deepEqual(after.dimensions.find((d) => d.label === 'Problem Solving').statements.BASIC, oldBasic, 'running cycle keeps its questionnaire');
+    const c9 = await makeCycle('C9', [['empN', 'N', 'mN']]);
+    await initiateCycle(c9);
+    const fresh = await getReviewDetail(await reviewId(c9, 'empN'));
+    assert.deepEqual(fresh.dimensions.find((d) => d.label === 'Problem Solving').statements.BASIC, ['Breaks down simple problems', 'Uses data to check'], 'a new cycle gets the update');
+    assert.equal(fresh.dimensions.find((d) => d.label === 'Problem Solving').intro, 'Breaks problems down into their drivers.');
+    // The seed on the next start does not bring back or duplicate anything.
+    await migrate({ quiet: true });
+    assert.equal((await pool.query("SELECT count(*)::int AS n FROM skills WHERE name = 'Problem Solving'")).rows[0].n, 1);
+    config.notion.token = '';
+  });
 }

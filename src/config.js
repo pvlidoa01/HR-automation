@@ -25,6 +25,11 @@ export const config = {
   // Mailbox the automatic emails are sent from, e.g. performance-review@r3robotics.ai.
   // Needs the Microsoft secrets above plus IT's permission for the app to send from it.
   mailFrom: (env.MAIL_FROM || '').trim().toLowerCase(),
+  // "Update skills from Notion": a Notion integration key with read access to the Skill Base.
+  notion: {
+    token: (env.NOTION_TOKEN || '').trim(),
+    skillBaseId: (env.NOTION_SKILL_BASE_ID || '1fbc1d7015dc808ca3a3d9827d848040').replace(/-/g, '').trim(),
+  },
 };
 
 config.microsoftEnabled = !!(config.microsoft.tenantId && config.microsoft.clientId && config.microsoft.clientSecret);

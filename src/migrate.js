@@ -39,15 +39,24 @@ export async function migrate({ quiet = false } = {}) {
   }
 }
 
+function notionPageId(url) {
+  const m = String(url || '').match(/([0-9a-f]{32})(?:\?|$)/i);
+  return m ? m[1].toLowerCase() : null;
+}
+
 async function seedSkills(client, quiet) {
   const skills = JSON.parse(fs.readFileSync(path.join(here, 'seed', 'skills.json'), 'utf8'));
   let added = 0;
   for (const s of skills) {
+    const pageId = notionPageId(s.notionUrl);
+    // Link skills seeded before migration 005 to their Notion page.
+    if (pageId) await client.query('UPDATE skills SET notion_page_id = $2 WHERE name = $1 AND notion_page_id IS NULL', [s.name, pageId]);
+    // Skip skills already present, also when "Update from Notion" has renamed them since.
     const res = await client.query(
-      `INSERT INTO skills (name, definition, levels, source, draft)
-       VALUES ($1, $2, $3, 'notion', $4)
-       ON CONFLICT (name) DO NOTHING`,
-      [s.name, s.definition, JSON.stringify(s.levels), s.draft],
+      `INSERT INTO skills (name, definition, levels, source, draft, notion_page_id)
+       SELECT $1, $2, $3, 'notion', $4, $5
+        WHERE NOT EXISTS (SELECT 1 FROM skills WHERE name = $1 OR (notion_page_id IS NOT NULL AND notion_page_id = $5))`,
+      [s.name, s.definition, JSON.stringify(s.levels), s.draft, pageId],
     );
     added += res.rowCount;
   }

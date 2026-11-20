@@ -34,4 +34,37 @@
     </table>
   </div>
 <% } %>
+
+<h2 id="skills">Skill questionnaires</h2>
+<div class="card">
+  <p class="small">The questions for each skill are written in the <strong>Notion Skill Base</strong> (one page per skill, with a Level / Behavior table). The app keeps a copy. To add a skill or change a questionnaire, edit it in Notion, then update the app here.
+  Cycles already initiated keep the questionnaire they started with; changes apply to cycles initiated afterwards.</p>
+  <% if (notionReady) { %>
+    <div class="btn-row" style="align-items:center">
+      <a class="btn primary" href="/hr/skills/notion">Check Notion for changes</a>
+      <span class="small muted"><%= lastSync ? `Last updated from Notion ${fmtDateTime(lastSync.at)} by ${lastSync.by}` : 'Not updated from Notion yet (the app uses the copy made on 5 Nov 2026).' %></span>
+    </div>
+    <p class="small muted">Checking shows every change first; nothing changes until you press Apply.</p>
+  <% } else { %>
+    <div class="notice info small"><strong>Not connected to Notion yet.</strong> A Notion admin creates a read-only connection for the app and shares the Skill Base with it; then the key is added in Replit as <code>NOTION_TOKEN</code>. Steps: <em>docs/notion-skills.md</em>. Until then, ask Alessandro to update the skills.</div>
+  <% } %>
+  <details style="margin-top:10px">
+    <summary class="small"><%= skills.length %> skills in the app</summary>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Skill</th><th>Statements</th><th>In open cycles</th><th>Last change</th></tr></thead>
+        <tbody>
+          <% skills.forEach(s => { const n = LEVEL_KEYS.reduce((t, k) => t + ((s.levels || {})[k] || []).length, 0); %>
+            <tr>
+              <td><%= s.name %><% if (s.draft) { %> <span class="badge status-draft">Draft</span><% } %><% if (!s.notion_page_id) { %> <span class="muted small">· not from Notion</span><% } %></td>
+              <td><%= n || 'none: rated 1–5 directly' %></td>
+              <td><%= s.in_use ? `${s.in_use} review${s.in_use === 1 ? '' : 's'}` : '—' %></td>
+              <td class="small muted"><%= s.updated_at ? fmtDate(s.updated_at) : 'copy of 5 Nov 2026' %></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  </details>
+</div>
 <%- include('partials/footer') %>

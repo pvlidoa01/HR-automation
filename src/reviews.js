@@ -21,8 +21,13 @@ export async function getReviewDetail(reviewId) {
   );
   if (!review) return null;
   const skillIds = Object.values(SKILL_DIMS).map((col) => review[col]).filter(Boolean);
-  const skills = skillIds.length ? await many('SELECT * FROM skills WHERE id = ANY($1)', [skillIds]) : [];
-  const skillById = new Map(skills.map((s) => [s.id, s]));
+  // An initiated cycle uses the questionnaires frozen when it started (see snapshotSkills).
+  const [current, frozen] = skillIds.length ? await Promise.all([
+    many('SELECT * FROM skills WHERE id = ANY($1)', [skillIds]),
+    many('SELECT skill_id AS id, name, definition, levels, draft FROM cycle_skills WHERE cycle_id = $1 AND skill_id = ANY($2)', [review.cycle_id, skillIds]),
+  ]) : [[], []];
+  const skillById = new Map(current.map((s) => [s.id, s]));
+  if (review.cycle_status !== 'setup') for (const s of frozen) skillById.set(s.id, s);
   const rows = await many('SELECT * FROM review_dimensions WHERE review_id = $1', [reviewId]);
   const byDim = new Map(rows.map((r) => [r.dimension, r]));
 

@@ -69,6 +69,7 @@ export async function initiateCycle(cycleId) {
     const n = (await client.query('SELECT count(*)::int AS n FROM reviews WHERE cycle_id = $1', [cycleId])).rows[0].n;
     if (!n) return { ok: false, error: 'Upload the employee list first.' };
     await client.query("UPDATE cycles SET status = 'open', initiated_at = now() WHERE id = $1", [cycleId]);
+    await snapshotSkills(client, cycleId);
     return { ok: true, count: n };
   });
 }
@@ -87,6 +88,21 @@ export async function releaseCycle(cycleId) {
   });
 }
 
+/**
+ * Freezes the questionnaire of every skill used in the cycle, as it is now. Later updates from
+ * Notion only reach cycles initiated afterwards. Skills already frozen for the cycle are kept.
+ */
+export async function snapshotSkills(client, cycleId) {
+  await client.query(
+    `INSERT INTO cycle_skills (cycle_id, skill_id, name, definition, levels, draft)
+     SELECT DISTINCT $1::int, s.id, s.name, s.definition, s.levels, s.draft
+       FROM reviews r JOIN skills s ON s.id IN (r.skill1_id, r.skill2_id, r.skill3_id)
+      WHERE r.cycle_id = $1
+     ON CONFLICT (cycle_id, skill_id) DO NOTHING`,
+    [cycleId],
+  );
+}
+
 /** Adds one person to a cycle that is open (late joiner). `row` is a validated roster row. */
 export async function addReview(cycleId, row, namesByEmail, actorId) {
   return tx(async (client) => {
@@ -103,6 +119,7 @@ export async function addReview(cycleId, row, namesByEmail, actorId) {
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
       [cycleId, employeeId, reviewerId, dept ? dept.name : row.department, row.position, row.seniority, ...row.skills.map((s) => skills.get(key(s)))],
     );
+    await snapshotSkills(client, cycleId); // only adds skills this cycle didn't have yet
     await log(client, rows[0].id, actorId, 'Added to the cycle by HR', null, null);
     return { ok: true, id: rows[0].id };
   });

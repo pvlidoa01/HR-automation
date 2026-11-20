@@ -246,3 +246,7 @@ code { background: var(--surface-2); padding: 1px 5px; border-radius: 4px; }
 .cycle-switch > summary { list-style: none; }
 .cycle-switch > summary::-webkit-details-marker { display: none; }
 .cycle-switch ul { position: absolute; right: 0; top: calc(100% + 4px); z-index: 5; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); }
+.sync-level { margin-top: 6px; }
+.sync-level ul { margin: 2px 0 0; padding-left: 18px; }
+.sync-level li.added { color: #1f6b3e; background: #e6f4ea; }
+.sync-level li.removed { color: #8a2a1f; text-decoration: line-through; }

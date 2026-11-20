@@ -1,0 +1,54 @@
+<%- include('partials/header') %>
+<%- include('partials/hr-tabs', { active: 'cycles' }) %>
+<%
+  const changes = plan.filter((p) => p.kind === 'new' || p.kind === 'update');
+  const label = { new: 'New skill', update: 'Changed', problem: 'Not applied: fix in Notion', missing: 'Not in Notion', same: 'No change' };
+  const badge = { new: 'status-closed', update: 'status-submitted', problem: 'status-draft', missing: 'status-not_started', same: 'status-not_started' };
+%>
+<h2>Update skills from Notion</h2>
+<p class="muted">This is what is in the Notion Skill Base now, compared with the app. Nothing has changed yet.
+Cycles already initiated keep the questionnaire they started with; the changes apply to cycles initiated after you press Apply (including cycles still being set up).</p>
+
+<% if (changes.length) { %>
+  <form method="post" action="/hr/skills/notion" class="card btn-row" style="align-items:center;justify-content:space-between">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <span><strong><%= changes.length %></strong> skill<%= changes.length === 1 ? '' : 's' %> to add or update.</span>
+    <span class="btn-row"><a class="btn" href="/hr#skills">Cancel</a><button class="btn primary" type="submit">Apply <%= changes.length %> change<%= changes.length === 1 ? '' : 's' %></button></span>
+  </form>
+<% } else { %>
+  <div class="notice info">The app already matches Notion<% if (plan.some((p) => p.kind === 'problem')) { %>, apart from the problems below<% } %>. <a href="/hr#skills">Back</a></div>
+<% } %>
+
+<div class="card table-wrap" style="padding:0">
+  <table>
+    <thead><tr><th>Skill</th><th>Result</th><th>Details</th></tr></thead>
+    <tbody>
+      <% plan.forEach(p => { const n = p.notion; const name = n ? n.name : p.app.name; %>
+        <tr>
+          <td><strong><%= name || '(no title)' %></strong><% if (n && n.draft) { %> <span class="badge status-draft">Draft</span><% } %>
+            <% if (n && n.url) { %><br><a class="small" href="<%= n.url %>" target="_blank" rel="noopener">Open in Notion</a><% } %></td>
+          <td><span class="badge <%= badge[p.kind] %>"><%= label[p.kind] %></span></td>
+          <td class="small">
+            <% if (p.what.length) { %><%= p.what.join(' · ') %><% } %>
+            <% (p.warnings || []).forEach(w => { %><div class="muted">Note: <%= w %></div><% }) %>
+            <% if (n && (p.kind === 'new' || (p.kind === 'update' && p.what.includes('Questionnaire changed')))) { %>
+              <details><summary>Show the questionnaire<%= p.kind === 'update' ? ' (new vs current)' : '' %></summary>
+                <% LEVEL_KEYS.forEach(k => { const now = (n.levels[k] || []); const before = p.app ? ((p.app.levels || {})[k] || []) : []; if (!now.length && !before.length) return; %>
+                  <div class="sync-level"><strong><%= k[0] + k.slice(1).toLowerCase() %></strong>
+                    <ul>
+                      <% now.forEach(t => { %><li class="<%= p.app && !before.includes(t) ? 'added' : '' %>"><%= t %></li><% }) %>
+                      <% before.filter(t => !now.includes(t)).forEach(t => { %><li class="removed"><%= t %></li><% }) %>
+                    </ul>
+                  </div>
+                <% }) %>
+                <% if (p.kind === 'update') { %><p class="muted">Green: new or reworded. Struck through: removed.</p><% } %>
+              </details>
+            <% } %>
+            <% if (p.what.includes('Definition changed')) { %><div class="muted">New definition: <%= n.definition || '(empty)' %></div><% } %>
+          </td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+</div>
+<%- include('partials/footer') %>

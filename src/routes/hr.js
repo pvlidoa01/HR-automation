@@ -3,8 +3,9 @@ import multer from 'multer';
 import { one, many, query } from '../db.js';
 import { requireHr, verifyCsrf } from '../auth/index.js';
 import { parseId, closeReviewsWithoutSecondLevel } from '../access.js';
+import { notionConfigured, readSkillBase, planSkillSync, applySkillSync } from '../notion.js';
 import { flash } from '../app.js';
-import { TALENT_BAR, SENIORITIES } from '../shared/framework.js';
+import { TALENT_BAR, SENIORITIES, LEVEL_KEYS } from '../shared/framework.js';
 import { parseRoster, validateRoster } from '../roster.js';
 import { buildTemplate } from '../template.js';
 import { listReviews, STATUS_LABELS } from '../reviews.js';
@@ -65,14 +66,56 @@ export function hrRoutes() {
     return next();
   });
 
+  // ---- Skills: update the questionnaires from the Notion Skill Base.
+  router.get('/skills/notion', async (req, res) => {
+    if (!notionConfigured()) return res.redirect('/hr#skills');
+    let plan;
+    try {
+      plan = await planSkillSync(await readSkillBase());
+    } catch (err) {
+      console.error('Notion check failed:', err);
+      flash(req, 'error', `Could not read Notion: ${err.message}`);
+      return res.redirect('/hr#skills');
+    }
+    // What HR sees is exactly what "Apply" applies.
+    req.session.skillPlan = { at: Date.now(), plan };
+    res.render('hr-skills-notion', { title: 'Update skills from Notion', plan, LEVEL_KEYS });
+  });
+
+  router.post('/skills/notion', async (req, res) => {
+    const saved = req.session.skillPlan;
+    delete req.session.skillPlan;
+    if (!saved || Date.now() - saved.at > 30 * 60 * 1000) {
+      flash(req, 'error', 'That check is too old. Check Notion again, then apply.');
+      return res.redirect('/hr#skills');
+    }
+    const changed = await applySkillSync(saved.plan);
+    await query(
+      `INSERT INTO app_settings (key, value) VALUES ('notion_skills', $1)
+       ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`,
+      [JSON.stringify({ at: new Date().toISOString(), by: req.user.name, changed })],
+    );
+    flash(req, 'success', changed
+      ? `${changed} skill(s) updated from Notion. Cycles initiated from now on use the new questionnaires; running and past cycles keep theirs.`
+      : 'Everything was already up to date.');
+    res.redirect('/hr#skills');
+  });
+
   router.get('/', async (req, res) => {
+    const skills = await many(
+      `SELECT s.name, s.draft, s.levels, s.updated_at, s.notion_page_id,
+              (SELECT count(*)::int FROM reviews r JOIN cycles c ON c.id = r.cycle_id
+                WHERE c.status = 'open' AND s.id IN (r.skill1_id, r.skill2_id, r.skill3_id)) AS in_use
+         FROM skills s ORDER BY s.draft, s.name`,
+    );
+    const lastSync = (await one("SELECT value FROM app_settings WHERE key = 'notion_skills'"))?.value || null;
     const cycles = await many(
       `SELECT c.*, (SELECT count(*)::int FROM reviews r WHERE r.cycle_id = c.id) AS people,
               (SELECT count(*)::int FROM reviews r WHERE r.cycle_id = c.id AND r.status = 'closed') AS closed
          FROM cycles c ORDER BY c.created_at DESC`,
     );
     const requests = (await one("SELECT count(*)::int AS n FROM change_requests WHERE status = 'open'")).n;
-    res.render('hr-index', { title: 'HR admin', cycles, requests });
+    res.render('hr-index', { title: 'HR admin', cycles, requests, skills, lastSync, notionReady: notionConfigured(), LEVEL_KEYS });
   });
 
   router.post('/cycles', async (req, res) => {

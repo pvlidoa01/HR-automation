@@ -55,8 +55,16 @@ points. They are only sent once Microsoft sign-in and `MAIL_FROM` are set up (se
 | Home | Managers and employees (not HR or the CEO) | What needs your attention |
 | My team | Anyone who writes or confirms reviews, HR and CEO included | Reviews to write and to confirm (count in the tab), and your branch of the tree |
 | HR dashboard (CEO: Dashboard) | HR admins and the CEO; where they land after signing in | The live view of a cycle; "Other cycles" to look back |
-| HR admin | HR admins only | Cycles (create, set up, all past cycles), Requests, Access, Emails |
+| HR admin | HR admins only | Cycles (create, set up, all past cycles, skill questionnaires from Notion), Requests, Access, Emails |
 | My reviews | Everyone | Your own reviews after release |
+
+## Skill questionnaires
+
+Written in the Notion Skill Base (one page per skill with a Level / Behavior table). The app keeps a
+copy: HR updates it with **HR admin → Cycles → Check Notion for changes**, sees every change, then
+applies it. Each cycle keeps the questionnaire it was initiated with; updates apply to cycles
+initiated afterwards. Setup: `docs/notion-skills.md` (a read-only Notion connection and the
+`NOTION_TOKEN` secret).
 
 ## Who sees what
 
