@@ -70,6 +70,35 @@ export async function getChangeLog(reviewId) {
 }
 
 /**
+ * What a person still has to do as a manager in open cycles: reviews to write (their own direct
+ * reports) and reviews to confirm (submitted by managers who report to them; never for the CEO).
+ */
+export async function teamTodo(userId) {
+  const [toWrite, toConfirm] = await Promise.all([
+    many(
+      `SELECT r.id, r.status, e.name AS employee_name, c.id AS cycle_id, c.name AS cycle_name, c.deadline
+         FROM reviews r JOIN cycles c ON c.id = r.cycle_id JOIN users e ON e.id = r.employee_id
+        WHERE r.reviewer_id = $1 AND r.employee_id <> $1 AND c.status = 'open' AND r.status IN ('not_started', 'draft')
+        ORDER BY c.deadline NULLS LAST, e.name`,
+      [userId],
+    ),
+    many(
+      `SELECT r.id, e.name AS employee_name, m.name AS reviewer_name, c.name AS cycle_name, r.submitted_at
+         FROM reviews r
+         JOIN reviews mr ON mr.cycle_id = r.cycle_id AND mr.employee_id = r.reviewer_id
+         JOIN users me ON me.id = mr.reviewer_id AND me.global_role IS DISTINCT FROM 'viewer_all'
+         JOIN cycles c ON c.id = r.cycle_id
+         JOIN users e ON e.id = r.employee_id
+         JOIN users m ON m.id = r.reviewer_id
+        WHERE mr.reviewer_id = $1 AND r.status = 'submitted' AND c.status = 'open' AND r.employee_id <> $1
+        ORDER BY r.submitted_at`,
+      [userId],
+    ),
+  ]);
+  return { toWrite, toConfirm };
+}
+
+/**
  * Everything that happened on a review, newest first: messages and logged changes together.
  * Each item: { kind: 'comment'|'change', at, user_name, user_id, body | field, old_value, new_value }.
  */

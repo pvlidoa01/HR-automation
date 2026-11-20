@@ -72,7 +72,7 @@ export function hrRoutes() {
          FROM cycles c ORDER BY c.created_at DESC`,
     );
     const requests = (await one("SELECT count(*)::int AS n FROM change_requests WHERE status = 'open'")).n;
-    res.render('hr-index', { title: 'HR', cycles, requests });
+    res.render('hr-index', { title: 'HR admin', cycles, requests });
   });
 
   router.post('/cycles', async (req, res) => {
@@ -224,7 +224,8 @@ export function hrRoutes() {
     const result = await reopenReview(id, req.user.id);
     if (result.ok) await safely(notifyReopened(id));
     flash(req, result.ok ? 'success' : 'error', result.ok ? 'Reopened. The manager and their manager can edit it again; it goes through both steps again.' : result.error);
-    res.redirect(req.body.back === 'cycle' && result.cycleId ? `/cycles/${result.cycleId}` : `/reviews/${id}`);
+    const view = ['tree', 'managers'].includes(req.body.view) ? `?view=${req.body.view}` : '';
+    res.redirect(req.body.back === 'cycle' && result.cycleId ? `/cycles/${result.cycleId}${view}` : `/reviews/${id}`);
   });
 
   // Requests from managers to reopen a review.

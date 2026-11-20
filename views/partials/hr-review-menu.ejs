@@ -1,0 +1,28 @@
+<%# HR actions on one review in a cycle: reopen it, or change its manager / remove it. Locals: r, csrfToken, view %>
+          <% if (['submitted', 'closed'].includes(r.status)) { %>
+            <details class="inline-menu">
+              <summary class="small"><%= locals.compact ? 'More' : 'Reopen' %></summary>
+              <form method="post" action="/hr/reviews/<%= r.id %>/reopen">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <input type="hidden" name="back" value="cycle">
+                <input type="hidden" name="view" value="<%= view %>">
+                <p class="small">Reopens it for <%= r.reviewer_name %><%= r.confirmerName ? ` and ${r.confirmerName}` : '' %>. It then goes through the steps again.</p>
+                <button class="btn small" type="submit">Reopen review</button>
+              </form>
+            </details>
+          <% } else { %>
+            <details class="inline-menu">
+              <summary class="small"><%= locals.compact ? 'More' : 'Change manager / remove' %></summary>
+              <form method="post" action="/hr/reviews/<%= r.id %>/reassign">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <input type="text" name="reviewerName" placeholder="New manager name" required>
+                <input type="email" name="reviewerEmail" placeholder="New manager email" required>
+                <button class="btn small" type="submit">Change manager</button>
+              </form>
+              <form method="post" action="/hr/reviews/<%= r.id %>/remove">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <button class="btn small danger" type="submit">Remove from cycle</button>
+              </form>
+            </details>
+          <% } %>
+        

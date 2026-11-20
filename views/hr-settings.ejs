@@ -1,8 +1,6 @@
 <%- include('partials/header') %>
-<div class="page-head">
-  <div><h1>Access settings</h1><p class="muted">People who see every review. HR admins edit, reopen and release. The CEO can read and edit every review, but is never the one who confirms: their edits are optional and logged. Managers, department heads and employees get their access from each cycle's employee list.</p></div>
-  <a class="btn" href="/hr">Back to HR</a>
-</div>
+<%- include('partials/hr-tabs', { active: 'access' }) %>
+<p class="muted">People who see every review. HR admins edit, reopen and release. The CEO can read and edit every review, but is never the one who confirms: their edits are optional and logged. Managers and employees get their access from each cycle's employee list.</p>
 <div class="card table-wrap" style="padding:0">
   <table>
     <thead><tr><th>Person</th><th>Access</th><th></th></tr></thead>

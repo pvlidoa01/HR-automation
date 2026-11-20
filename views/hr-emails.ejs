@@ -1,8 +1,6 @@
 <%- include('partials/header') %>
-<div class="page-head">
-  <div><h1>Automatic emails</h1><p class="muted">Which events send an email, and every email the app has prepared. Emails never contain ratings, feedback or HR action points: only who did what, and a link to the app.</p></div>
-  <a class="btn" href="/hr">Back to HR</a>
-</div>
+<%- include('partials/hr-tabs', { active: 'emails' }) %>
+<p class="muted">Which events send an email, and every email the app has prepared. Emails never contain ratings, feedback or HR action points: only who did what, and a link to the app.</p>
 
 <% if (sending) { %>
   <div class="notice info">Emails are sent from <strong><%= mailFrom %></strong>.</div>

@@ -25,9 +25,11 @@ The framework (values, deliverables, skills, Talent Bar, grade rules) comes from
    which completes it. If the manager's own manager is the CEO or is not reviewed (the heads), the
    manager's submit completes it: the CEO is never an approval step.
 6. **Changes after submitting.** The manager (or, once completed, the second level) uses
-   **Ask HR to reopen** with a short explanation. HR approves or declines under **Requests**; HR can
+   **Ask HR to reopen** with a short explanation. HR approves or declines under **HR admin → Requests**; HR can
    also reopen any review directly from the cycle page. A reopened review goes through both steps again.
-7. **HR follows the cycle** as an organisation tree (or a list) and can edit any review while it is open.
+7. **HR follows the cycle** in the **HR dashboard**: status counts (click one to filter), a reviews
+   table with search and filters by manager, department and status, a Managers view and the
+   Organisation tree. It updates itself every minute. HR can open and edit any review while it is open.
    The CEO can do the same, optionally: their edits are logged and don't change the steps.
 8. **Discussion and changes.** Next to each review, the manager, the second level (once it reaches
    them), HR and the CEO see every logged change and can post messages, e.g. a manager questioning a
@@ -41,10 +43,20 @@ The framework (values, deliverables, skills, Talent Bar, grade rules) comes from
 Sent for: a review submitted (to the second level), a review completed (to HR), a request to reopen
 (to HR, with the explanation), HR's decision (to the person who asked), a review reopened, a cycle
 initiated (to each manager) and a cycle released (to each employee). HR can turn each one off under
-**HR → Emails**, which also lists every email. Emails never contain ratings, feedback or HR action
+**HR admin → Emails**, which also lists every email. Emails never contain ratings, feedback or HR action
 points. They are only sent once Microsoft sign-in and `MAIL_FROM` are set up (see
 `docs/microsoft-sign-in-request.md`); until then they are listed but not sent. Test addresses
 (`…@demo.r3.test`) are never sent to.
+
+## Navigation
+
+| Tab | Who | What |
+| --- | --- | --- |
+| Home | Managers and employees (not HR or the CEO) | What needs your attention |
+| My team | Anyone who writes or confirms reviews, HR and CEO included | Reviews to write and to confirm (count in the tab), and your branch of the tree |
+| HR dashboard (CEO: Dashboard) | HR admins and the CEO; where they land after signing in | The live view of a cycle; "Other cycles" to look back |
+| HR admin | HR admins only | Cycles (create, set up, all past cycles), Requests, Access, Emails, Skills |
+| My reviews | Everyone | Your own reviews after release |
 
 ## Who sees what
 
@@ -109,7 +121,7 @@ unless `ALLOW_TEST_LOGIN_ON_DEPLOYMENT=true` is also set (only for a test deploy
 - **Turn test login off** (`ALLOW_TEST_LOGIN=false` or delete it). With test login on, anyone with the
   link can sign in as anyone.
 - Use a fresh database without demo data, or run `npm run demo:remove`.
-- In **HR → Access settings**, add the backup HR admin and the CEO.
+- In **HR admin → Access**, add the backup HR admin and the CEO.
 
 Note: Replit hosts in the US. Decided for the MVP; revisit if EU hosting becomes a requirement.
 

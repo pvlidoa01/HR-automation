@@ -1,13 +1,5 @@
 <%- include('partials/header') %>
-<div class="page-head">
-  <div><h1>HR</h1><p class="muted">Set up review cycles, follow progress, calibrate and release.</p></div>
-  <div class="btn-row">
-    <a class="btn" href="/hr/requests">Requests<% if (requests) { %> <span class="count"><%= requests %></span><% } %></a>
-    <a class="btn" href="/hr/emails">Emails</a>
-    <a class="btn" href="/hr/skills">Skills</a>
-    <a class="btn" href="/hr/settings">Access settings</a>
-  </div>
-</div>
+<%- include('partials/hr-tabs', { active: 'cycles' }) %>
 
 <div class="card">
   <h3>New review cycle</h3>
@@ -19,7 +11,8 @@
   </form>
 </div>
 
-<h2>Cycles</h2>
+<h2>All cycles</h2>
+<p class="muted small">Current and past cycles. Open one to see it in the dashboard; released cycles stay there read-only, so you can look back.</p>
 <% if (!cycles.length) { %>
   <div class="card empty">No cycles yet. Create the first one above.</div>
 <% } else { %>
@@ -34,7 +27,7 @@
             <td><%= fmtDate(c.deadline) %></td>
             <td><%= c.people %></td>
             <td><%= c.status === 'setup' ? '—' : `${c.closed} / ${c.people}` %></td>
-            <td><a class="btn small" href="<%= c.status === 'setup' ? `/hr/cycles/${c.id}/setup` : `/cycles/${c.id}` %>"><%= c.status === 'setup' ? 'Continue set-up' : 'Open' %></a></td>
+            <td><a class="btn small" href="<%= c.status === 'setup' ? `/hr/cycles/${c.id}/setup` : `/cycles/${c.id}` %>"><%= c.status === 'setup' ? 'Continue set-up' : 'Open in dashboard' %></a></td>
           </tr>
         <% }) %>
       </tbody>

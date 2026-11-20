@@ -1,6 +1,6 @@
 import express from 'express';
 import { one, many } from '../db.js';
-import { listReviews, attachNewActivity, STATUS_LABELS } from '../reviews.js';
+import { listReviews, attachNewActivity, teamTodo, STATUS_LABELS } from '../reviews.js';
 import { seesEverything, parseId } from '../access.js';
 import { cycleSummary } from '../cycles.js';
 import { buildTree } from '../org.js';
@@ -21,23 +21,15 @@ export function homeRoutes() {
 
   router.get('/', async (req, res) => {
     const me = req.user;
-    const [mine, team, toConfirm, requests, cycles] = await Promise.all([
+    // HR and the CEO start on the dashboard; their own manager work is under My team.
+    if (seesEverything(me)) return res.redirect('/dashboard');
+    const [mine, team, todo] = await Promise.all([
       many(`SELECT r.id, c.name AS cycle_name, r.employee_read_at FROM reviews r JOIN cycles c ON c.id = r.cycle_id
              WHERE r.employee_id = $1 AND c.status = 'released' ORDER BY c.released_at DESC`, [me.id]),
       many(`SELECT r.status, c.id AS cycle_id, c.name AS cycle_name, c.status AS cycle_status, c.deadline
               FROM reviews r JOIN cycles c ON c.id = r.cycle_id
              WHERE r.reviewer_id = $1 AND c.status = 'open'`, [me.id]),
-      many(`SELECT r.id, e.name AS employee_name, m.name AS reviewer_name, c.name AS cycle_name
-              FROM reviews r
-              JOIN reviews mr ON mr.cycle_id = r.cycle_id AND mr.employee_id = r.reviewer_id
-              JOIN users me ON me.id = mr.reviewer_id AND me.global_role IS DISTINCT FROM 'viewer_all'
-              JOIN cycles c ON c.id = r.cycle_id
-              JOIN users e ON e.id = r.employee_id
-              JOIN users m ON m.id = r.reviewer_id
-             WHERE mr.reviewer_id = $1 AND r.status = 'submitted' AND c.status = 'open' AND r.employee_id <> $1
-             ORDER BY r.submitted_at`, [me.id]),
-      me.global_role === 'hr_admin' ? one("SELECT count(*)::int AS n FROM change_requests WHERE status = 'open'") : null,
-      seesEverything(me) ? many('SELECT * FROM cycles ORDER BY created_at DESC') : [],
+      teamTodo(me.id),
     ]);
     const openTeam = groupByCycle(team.map((t) => ({ ...t })));
     for (const g of openTeam) {
@@ -45,7 +37,18 @@ export function homeRoutes() {
       g.total = g.reviews.length;
     }
     const hasTeamHistory = !!(await one('SELECT 1 FROM reviews r JOIN cycles c ON c.id = r.cycle_id WHERE r.reviewer_id = $1 AND c.status <> \'setup\' LIMIT 1', [me.id]));
-    res.render('home', { title: 'Home', mine, openTeam, hasTeamHistory, toConfirm, openRequests: requests?.n || 0, cycles });
+    res.render('home', { title: 'Home', mine, openTeam, hasTeamHistory, toConfirm: todo.toConfirm, openRequests: 0, cycles: [] });
+  });
+
+  // HR / CEO dashboard: opens the most recent open cycle (or the latest released one).
+  router.get('/dashboard', async (req, res) => {
+    if (!seesEverything(req.user)) return res.redirect('/');
+    const cycle = await one(
+      `SELECT id FROM cycles WHERE status <> 'setup'
+        ORDER BY (status = 'open') DESC, created_at DESC LIMIT 1`,
+    );
+    if (cycle) return res.redirect(`/cycles/${cycle.id}`);
+    res.render('dashboard-empty', { title: 'Dashboard', isHrUser: req.user.global_role === 'hr_admin' });
   });
 
   router.get('/me', async (req, res) => {
@@ -79,7 +82,8 @@ export function homeRoutes() {
         ORDER BY e.name, oc.created_at DESC`,
       [req.user.id],
     );
-    res.render('team', { title: 'My team', groups, earlier, STATUS_LABELS });
+    const todo = await teamTodo(req.user.id);
+    res.render('team', { title: 'My team', groups, earlier, todo, STATUS_LABELS });
   });
 
   // Cycle overview for HR and the CEO.
@@ -107,13 +111,23 @@ export function homeRoutes() {
     }
     const tree = buildTree(rows, req.user, summary.cycle);
     await attachNewActivity(req.user.id, rows, (r) => !r.isOwnHidden && r.access?.canSeeChangeLog);
-    const view = req.query.view === 'list' ? 'list' : 'tree';
+    const view = ['managers', 'tree'].includes(req.query.view) ? req.query.view : 'reviews';
+    const allCycles = await many("SELECT id, name, status, deadline FROM cycles WHERE status <> 'setup' ORDER BY created_at DESC");
+    const options = (key) => [...new Set(rows.map((r) => r[key]).filter(Boolean))].sort((a, b) => a.localeCompare(b));
     const openRequests = req.user.global_role === 'hr_admin'
       ? await one("SELECT count(*)::int AS n FROM change_requests q JOIN reviews r ON r.id = q.review_id WHERE q.status = 'open' AND r.cycle_id = $1", [summary.cycle.id])
       : null;
     const skills = req.user.global_role === 'hr_admin' ? await many('SELECT id, name FROM skills ORDER BY name') : [];
-    res.render('cycle', {
-      title: summary.cycle.name,
+    const counts = { not_started: 0, draft: 0, submitted: 0, closed: 0 };
+    for (const r of rows) counts[r.status] += 1;
+    res.render('dashboard', {
+      title: `${summary.cycle.name} · Dashboard`,
+      allCycles,
+      counts,
+      requestsCount: rows.filter((r) => r.open_request_id).length,
+      newCount: rows.filter((r) => r.newActivity).length,
+      managerOptions: options('reviewer_name'),
+      departmentOptions: options('department'),
       ...summary,
       rows,
       managers: [...managers.values()].sort((a, b) => (b.total - b.closed) - (a.total - a.closed) || a.name.localeCompare(b.name)),

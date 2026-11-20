@@ -10,6 +10,8 @@ import { loadUser, requireLogin, csrf, authRoutes } from './auth/index.js';
 import { homeRoutes } from './routes/home.js';
 import { hrRoutes } from './routes/hr.js';
 import { reviewRoutes } from './routes/reviews.js';
+import { teamTodo } from './reviews.js';
+import { seesEverything } from './access.js';
 import { levelLabel, SENIORITIES } from './shared/framework.js';
 import { gradeLabel } from './shared/scoring.js';
 
@@ -86,15 +88,17 @@ export function createApp() {
     try {
       const id = req.user.id;
       const isHrAdmin = req.user.global_role === 'hr_admin';
-      const [team, requests] = await Promise.all([
+      const [team, requests, todo] = await Promise.all([
         one("SELECT 1 FROM reviews r JOIN cycles c ON c.id = r.cycle_id WHERE r.reviewer_id = $1 AND c.status <> 'setup' LIMIT 1", [id]),
         isHrAdmin ? one("SELECT count(*)::int AS n FROM change_requests WHERE status = 'open'") : null,
+        teamTodo(id),
       ]);
       res.locals.nav = {
-        team: !!team,
+        team: !!team || todo.toConfirm.length > 0,
+        teamTodo: todo.toWrite.length + todo.toConfirm.length,
         requests: requests?.n || 0,
-        hr: req.user.global_role === 'hr_admin',
-        all: req.user.global_role === 'viewer_all',
+        hr: isHrAdmin,
+        dashboard: seesEverything(req.user),
       };
       next();
     } catch (err) {

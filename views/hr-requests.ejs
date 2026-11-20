@@ -1,8 +1,6 @@
 <%- include('partials/header') %>
-<div class="page-head">
-  <div><h1>Requests to reopen</h1><p class="muted">Managers ask here when they want to change a review they already submitted. Approving reopens the review for the manager and their manager.</p></div>
-  <a class="btn" href="/hr">Back to HR</a>
-</div>
+<%- include('partials/hr-tabs', { active: 'requests' }) %>
+<p class="muted">Managers ask here when they want to change a review they already submitted. Approving reopens the review for the manager and their manager.</p>
 
 <h2>Waiting for you</h2>
 <% if (!open.length) { %>

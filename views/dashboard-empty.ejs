@@ -1,0 +1,7 @@
+<%- include('partials/header') %>
+<div class="page-head"><div><h1>Dashboard</h1><p class="muted">The live view of a review cycle appears here once a cycle has been initiated.</p></div></div>
+<div class="card empty">
+  No cycle has been initiated yet.
+  <% if (isHrUser) { %><p><a class="btn primary" href="/hr">Set up a cycle in HR admin</a></p><% } %>
+</div>
+<%- include('partials/footer') %>

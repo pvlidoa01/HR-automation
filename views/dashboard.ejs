@@ -1,0 +1,193 @@
+<%- include('partials/header') %>
+<%
+  const isOpen = cycle.status === 'open';
+  const total = rows.length;
+  const pct = total ? Math.round(counts.closed / total * 100) : 0;
+  const readCount = rows.filter((r) => r.employee_read_at).length;
+  const cards = [
+    { key: 'not_started', label: 'Not started', n: counts.not_started },
+    { key: 'draft', label: 'In progress', n: counts.draft },
+    { key: 'submitted', label: 'Waiting for confirmation', n: counts.submitted },
+    { key: 'closed', label: 'Completed', n: counts.closed },
+  ];
+  const fmtShort = (d) => new Date(d).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  const viewHref = (v) => `/cycles/${cycle.id}${v === 'reviews' ? '' : `?view=${v}`}`;
+%>
+<div class="page-head">
+  <div>
+    <h1><%= cycle.name %> <span class="badge cycle-<%= cycle.status %>"><%= { open: 'Open', released: 'Released' }[cycle.status] %></span></h1>
+    <p class="muted">
+      <% if (cycle.deadline) { %>Deadline <strong><%= fmtDate(cycle.deadline) %></strong> · <% } %><%= total %> people
+      <% if (cycle.released_at) { %> · released <%= fmtDate(cycle.released_at) %><% } %>
+      <% if (isOpen) { %> · <span class="live-status" id="live-status" title="This page updates itself every minute">Live</span><% } %>
+    </p>
+  </div>
+  <% if (allCycles.length > 1) { %>
+    <details class="cycle-switch">
+      <summary class="btn">Other cycles</summary>
+      <ul>
+        <% allCycles.forEach(c => { %>
+          <li><a href="/cycles/<%= c.id %>" class="<%= c.id === cycle.id ? 'active' : '' %>"><%= c.name %></a> <span class="badge cycle-<%= c.status %>"><%= { open: 'Open', released: 'Released' }[c.status] %></span></li>
+        <% }) %>
+      </ul>
+    </details>
+  <% } %>
+</div>
+
+<div id="live-summary" data-live>
+  <% if (isHrUser && requestsCount) { %>
+    <div class="notice info"><strong><%= requestsCount %></strong> request<%= requestsCount === 1 ? '' : 's' %> to reopen a review in this cycle. <a href="/hr/requests">Decide in HR admin → Requests</a></div>
+  <% } %>
+  <div class="dash-progress">
+    <div class="progress"><span style="width:<%= pct %>%"></span></div>
+    <span class="small"><strong><%= counts.closed %> of <%= total %></strong> completed (<%= pct %>%)<% if (cycle.status === 'released') { %> · read by <%= readCount %> of <%= total %> employees<% } %></span>
+  </div>
+  <div class="status-cards">
+    <% cards.forEach(c => { %>
+      <button type="button" class="status-card status-<%= c.key %>" data-set-status="<%= c.key %>" <%= view !== 'reviews' ? 'data-go-reviews' : '' %> title="Show only these">
+        <span class="n"><%= c.n %></span><span class="l"><%= c.label %></span>
+      </button>
+    <% }) %>
+    <% if (isHrUser && requestsCount) { %>
+      <button type="button" class="status-card status-request" data-set-status="request" <%= view !== 'reviews' ? 'data-go-reviews' : '' %>><span class="n"><%= requestsCount %></span><span class="l">Reopen requested</span></button>
+    <% } %>
+    <% if (newCount) { %>
+      <button type="button" class="status-card status-new" data-set-status="new" <%= view !== 'reviews' ? 'data-go-reviews' : '' %>><span class="n"><%= newCount %></span><span class="l">New for you</span></button>
+    <% } %>
+  </div>
+  <% if (isHrUser && isOpen) { %>
+    <div class="release-bar">
+      <% if (counts.closed === total && total) { %>
+        <form method="post" action="/hr/cycles/<%= cycle.id %>/release">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <strong>Every review is completed.</strong>
+          <label class="small" style="font-weight:400"><input type="checkbox" name="confirm" value="yes"> I have finished calibration</label>
+          <button class="btn primary small" type="submit">Release all reviews</button>
+          <span class="small muted">Everyone sees theirs at the same time. Can't be undone.</span>
+        </form>
+      <% } else { %>
+        <span class="small muted"><strong>Release to employees</strong> is possible once all reviews are completed (<%= total - counts.closed %> to go). You can still edit reviews after that, until you release.</span>
+      <% } %>
+    </div>
+  <% } %>
+</div>
+
+<div class="dash-bar">
+  <div class="tabs">
+    <a class="<%= view === 'reviews' ? 'active' : '' %>" href="<%= viewHref('reviews') %>">Reviews</a>
+    <a class="<%= view === 'managers' ? 'active' : '' %>" href="<%= viewHref('managers') %>">Managers</a>
+    <a class="<%= view === 'tree' ? 'active' : '' %>" href="<%= viewHref('tree') %>">Organisation</a>
+  </div>
+</div>
+
+<% if (view === 'reviews') { %>
+  <form class="filters" id="filters" role="search">
+    <div class="field"><label for="f-q">Search</label><input id="f-q" type="search" data-filter="q" placeholder="Name or position"></div>
+    <div class="field"><label for="f-manager">Manager</label>
+      <select id="f-manager" data-filter="manager"><option value="">All</option><% managerOptions.forEach(m => { %><option><%= m %></option><% }) %></select></div>
+    <div class="field"><label for="f-dept">Department</label>
+      <select id="f-dept" data-filter="dept"><option value="">All</option><% departmentOptions.forEach(d => { %><option><%= d %></option><% }) %></select></div>
+    <div class="field"><label for="f-status">Status</label>
+      <select id="f-status" data-filter="status">
+        <option value="">All</option>
+        <% cards.forEach(c => { %><option value="<%= c.key %>"><%= c.label %></option><% }) %>
+        <% if (isHrUser) { %><option value="request">Reopen requested</option><% } %>
+        <option value="new">New for you</option>
+      </select></div>
+    <div class="filters-end"><span class="muted small" id="f-count"></span> <button type="button" class="btn small" id="f-clear">Clear</button></div>
+  </form>
+<% } %>
+
+<div id="live-main" data-live>
+<% if (view === 'reviews') { %>
+  <div class="card table-wrap" style="padding:0">
+    <table class="dash-table">
+      <thead><tr><th>Employee</th><th>Manager</th><th>Second level</th><th>Status</th><th>Overall</th><th>Last change</th><th></th></tr></thead>
+      <tbody>
+        <% rows.forEach(r => { const a = r.access || {}; %>
+          <tr data-row data-q="<%= `${r.employee_name} ${r.position || ''}`.toLowerCase() %>" data-manager="<%= r.reviewer_name %>" data-dept="<%= r.department %>"
+              data-status="<%= r.status %>" data-request="<%= r.open_request_id ? 1 : 0 %>" data-new="<%= r.newActivity ? 1 : 0 %>">
+            <td><strong><%= r.employee_name %></strong><br><span class="muted small"><%= r.position %> · <%= r.seniority %> · <%= r.department %></span></td>
+            <td><%= r.reviewer_name %></td>
+            <td><%= r.confirmerName || '—' %></td>
+            <td>
+              <span class="badge status-<%= r.status %>"><%= STATUS_LABELS[r.status] %></span>
+              <% if (r.open_request_id) { %><br><span class="badge status-draft">Reopen requested</span><% } %>
+              <% if (r.newActivity && !r.isOwnHidden) { %><br><a class="badge new-activity" href="/reviews/<%= r.id %>#activity"><%= r.newActivity %> new</a><% } %>
+              <% if (cycle.status === 'released') { %><br><span class="muted small"><%= r.employee_read_at ? 'Read ' + fmtDate(r.employee_read_at) : 'Not read yet' %></span><% } %>
+            </td>
+            <td><% if (r.isOwnHidden) { %><span class="muted small">Your own review</span><% } else { %><%- include('partials/grade', { code: r.grades.overall }) %><% } %></td>
+            <td class="small muted nowrap"><%= r.status === 'not_started' ? '—' : fmtShort(r.updated_at) %></td>
+            <td class="row-actions">
+              <% if (!r.isOwnHidden) { %>
+                <a class="btn small" href="/reviews/<%= r.id %>"><%= a.canEdit ? 'Open / edit' : 'Open' %></a>
+                <% if (isHrUser && isOpen) { %><%- include('partials/hr-review-menu', { r, csrfToken, view: 'reviews', compact: true }) %><% } %>
+              <% } %>
+            </td>
+          </tr>
+        <% }) %>
+        <tr id="f-empty" hidden><td colspan="7" class="muted">No reviews match these filters.</td></tr>
+      </tbody>
+    </table>
+  </div>
+<% } else if (view === 'managers') { %>
+  <p class="muted small">Click a manager to see their reviews.</p>
+  <div class="card table-wrap" style="padding:0">
+    <table>
+      <thead><tr><th>Manager</th><th>Reviews</th><th>Not started</th><th>In progress</th><th>Waiting for confirmation</th><th>Completed</th><th style="width:160px">Done</th></tr></thead>
+      <tbody>
+        <% managers.forEach(m => { %>
+          <tr>
+            <td><a href="/cycles/<%= cycle.id %>?manager=<%= encodeURIComponent(m.name) %>"><strong><%= m.name %></strong></a><br><span class="muted small"><%= m.email %></span></td>
+            <td><%= m.total %></td>
+            <td><%= m.not_started || '' %></td>
+            <td><%= m.draft || '' %></td>
+            <td><%= m.submitted || '' %></td>
+            <td><%= m.closed || '' %></td>
+            <td><div class="progress"><span style="width:<%= Math.round(m.closed / m.total * 100) %>%"></span></div></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+<% } else { %>
+  <p class="muted small">Starts from the top of the organisation. Open a person to see their direct reports.</p>
+  <div class="card org-tree">
+    <% roots.forEach(node => { %>
+      <%- include('partials/org-node', { node, mode: 'hr', cycleOpen: isOpen, isHrUser, STATUS_LABELS, csrfToken, user }) %>
+    <% }) %>
+  </div>
+<% } %>
+</div>
+
+<% if (isHrUser && isOpen) { %>
+  <details class="card late-joiner" id="add">
+    <summary><strong>Add a late joiner to this cycle</strong></summary>
+    <form method="post" action="/hr/cycles/<%= cycle.id %>/add" style="margin-top:12px">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <div class="form-grid">
+        <div class="field"><label>Employee name</label><input type="text" name="employeeName" required></div>
+        <div class="field"><label>Employee email</label><input type="email" name="employeeEmail" required></div>
+        <div class="field"><label>Department</label>
+          <input type="text" name="department" list="dept-list" required>
+          <datalist id="dept-list"><% departments.forEach(d => { %><option value="<%= d.name %>"><% }) %></datalist>
+        </div>
+        <div class="field"><label>Position</label><input type="text" name="position" required></div>
+        <div class="field"><label>Seniority</label>
+          <select name="seniority" required><option value=""></option><% SENIORITIES.forEach(s => { %><option><%= s %></option><% }) %></select>
+        </div>
+        <div class="field"><label>Manager name</label><input type="text" name="reviewerName" required></div>
+        <div class="field"><label>Manager email</label><input type="email" name="reviewerEmail" required></div>
+        <% [1, 2, 3].forEach(n => { %>
+          <div class="field"><label>Skill <%= n %></label>
+            <select name="skill<%= n %>" required><option value=""></option><% skills.forEach(s => { %><option><%= s.name %></option><% }) %></select>
+          </div>
+        <% }) %>
+      </div>
+      <button class="btn primary" type="submit">Add to cycle</button>
+    </form>
+  </details>
+<% } %>
+
+<script type="module" src="/static/js/dashboard.js"></script>
+<%- include('partials/footer') %>

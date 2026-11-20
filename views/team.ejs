@@ -1,7 +1,28 @@
 <%- include('partials/header') %>
 <div class="page-head"><div><h1>My team</h1>
-  <p class="muted">Your direct reports. Open a person to see who reports to them. You write the reviews of your direct reports; when one of your managers submits a review, you confirm it or adjust it before it is final. HR and the CEO can read and edit every review; the CEO is not an approval step. Use "Discussion and changes" on a review to comment on changes made by others. Employees see theirs only after HR releases the cycle, and never the HR action points.</p>
+  <p class="muted">The reviews you are responsible for as a manager. You write your direct reports' reviews; when one of your managers submits a review, you confirm it or adjust it before it is final. Open a person to see who reports to them.</p>
 </div></div>
+<% if (todo.toWrite.length || todo.toConfirm.length) { %>
+  <div class="todo-grid">
+    <% if (todo.toWrite.length) { %>
+      <div class="card">
+        <h3>To write · <%= todo.toWrite.length %></h3>
+        <% if (todo.toWrite[0].deadline) { %><p class="small muted">Due <%= fmtDate(todo.toWrite[0].deadline) %></p><% } %>
+        <ul><% todo.toWrite.forEach(t => { %><li><a href="/reviews/<%= t.id %>"><%= t.employee_name %></a> <span class="muted small">· <%= t.status === 'draft' ? 'in progress' : 'not started' %> · <%= t.cycle_name %></span></li><% }) %></ul>
+      </div>
+    <% } %>
+    <% if (todo.toConfirm.length) { %>
+      <div class="card">
+        <h3>To confirm · <%= todo.toConfirm.length %></h3>
+        <p class="small muted">Your managers submitted these. Read them, adjust if needed, and confirm.</p>
+        <ul><% todo.toConfirm.forEach(t => { %><li><a href="/reviews/<%= t.id %>"><%= t.employee_name %></a> <span class="muted small">· written by <%= t.reviewer_name %> · <%= t.cycle_name %></span></li><% }) %></ul>
+      </div>
+    <% } %>
+  </div>
+<% } else if (groups.some(g => g.status === 'open')) { %>
+  <div class="notice info">Nothing to do right now: all your reviews are submitted.</div>
+<% } %>
+<p class="muted small">HR and the CEO can read and edit every review; the CEO is not an approval step. Use "Discussion and changes" on a review to comment on changes made by others. Employees see theirs only after HR releases the cycle, and never the HR action points.</p>
 <% if (!groups.length) { %>
   <div class="card empty">You have no reviews to write.</div>
 <% } %>

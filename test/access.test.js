@@ -48,7 +48,7 @@ if (!dbUrl) {
     const token = page.text.match(/name="_csrf" value="([^"]+)"/)[1];
     const res = await agent.post('/login/test').type('form').send({ _csrf: token, email: E(name) });
     assert.equal(res.status, 302);
-    const home = await agent.get('/');
+    const home = await agent.get('/me');
     agent.csrf = home.text.match(/name="_csrf" value="([^"]+)"/)[1];
     return agent;
   }
@@ -231,7 +231,7 @@ if (!dbUrl) {
 
   test('organisation trees: HR starts from the heads; a head sees only their own branch', async () => {
     const hr = await as('hr');
-    const tree = await hr.get(`/cycles/${ids.c1}`);
+    const tree = await hr.get(`/cycles/${ids.c1}?view=tree`);
     assert.match(tree.text, /headEng[\s\S]*not reviewed in this cycle/);
     assert.match(tree.text, /2 direct reports · 5 in total/);
     const headEng = await as('headEng');
@@ -395,7 +395,7 @@ if (!dbUrl) {
     const hr = await as('hr');
     assert.equal((await hr.get('/cycles/abc')).status, 404);
     assert.equal((await hr.get('/hr/cycles/99999999999/setup')).status, 404);
-    assert.equal((await hr.get('/')).status, 200, 'still running');
+    assert.equal((await hr.get('/dashboard')).status, 302, 'still running');
   });
 
   test('own review stays private for HR admins and managers; CEO can write reviews they own', async () => {
@@ -453,8 +453,8 @@ if (!dbUrl) {
     assert.equal((await postReview(headX, rmX, { action: 'submit', ...allRatings(3) })).status, 302);
     assert.equal(await status(rmX), 'closed', 'no CEO confirmation step');
     const ceo = await as('ceo');
-    const home = await ceo.get('/');
-    assert.doesNotMatch(home.text, /Review and confirm|to confirm/i, 'nothing waits for the CEO');
+    const home = await ceo.get('/team');
+    assert.doesNotMatch(home.text, /Review and confirm|To confirm/, 'nothing waits for the CEO');
     assert.equal((await postReview(ceo, rmX, { action: 'save', ...allRatings(4) })).status, 302);
     assert.equal(await status(rmX), 'closed');
     assert.equal(await rating(rmX, 'impact'), 4);
@@ -531,6 +531,27 @@ if (!dbUrl) {
     assert.equal(res.status, 302);
     assert.equal(await status(id), 'closed');
     await hr.post('/hr/settings/role').type('form').send({ _csrf: hr.csrf, email: E('bossZ'), role: '' });
+  });
+
+  test('navigation and dashboard: HR lands on the dashboard; managers keep Home; the CEO has no HR admin', async () => {
+    const hr = await as('hr');
+    assert.equal((await hr.get('/')).headers.location, '/dashboard');
+    const dash = await hr.get('/dashboard');
+    assert.match(dash.headers.location, /^\/cycles\/\d+$/);
+    const page = await hr.get(dash.headers.location);
+    assert.equal(page.status, 200);
+    assert.match(page.text, /HR dashboard/);
+    assert.match(page.text, /HR admin/);
+    assert.match(page.text, /data-row/, 'reviews table is the default view');
+    assert.match((await hr.get('/hr/settings')).text, /class="subtabs"/);
+    const ceo = await as('ceo');
+    const ceoPage = await ceo.get((await ceo.get('/dashboard')).headers.location);
+    assert.match(ceoPage.text, />Dashboard</);
+    assert.doesNotMatch(ceoPage.text, /HR admin|Release all reviews|Add a late joiner/);
+    const mA = await as('mA');
+    assert.equal((await mA.get('/')).status, 200);
+    assert.equal((await mA.get('/dashboard')).status, 302);
+    assert.doesNotMatch((await mA.get('/me')).text, /HR dashboard|HR admin/);
   });
 
   test('only HR opens HR pages', async () => {
