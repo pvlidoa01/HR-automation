@@ -1,9 +1,8 @@
-<%# Sub-navigation of HR admin. Locals: active ('cycles' | 'requests' | 'access' | 'emails' | 'skills') %>
-<div class="page-head"><div><h1>HR admin</h1><p class="muted">Set up and look back at cycles, decide on requests, manage access, emails and skills. Follow a running cycle in the <a href="/dashboard">HR dashboard</a>.</p></div></div>
+<%# Sub-navigation of HR admin. Locals: active ('cycles' | 'requests' | 'access' | 'emails') %>
+<div class="page-head"><div><h1>HR admin</h1><p class="muted">Set up and look back at cycles, decide on requests, manage access and emails. Follow a running cycle in the <a href="/dashboard">HR dashboard</a>.</p></div></div>
 <nav class="subtabs" aria-label="HR admin">
   <a href="/hr" class="<%= active === 'cycles' ? 'active' : '' %>">Cycles</a>
   <a href="/hr/requests" class="<%= active === 'requests' ? 'active' : '' %>">Requests<% if (locals.nav && nav.requests) { %> <span class="count"><%= nav.requests %></span><% } %></a>
   <a href="/hr/settings" class="<%= active === 'access' ? 'active' : '' %>">Access</a>
   <a href="/hr/emails" class="<%= active === 'emails' ? 'active' : '' %>">Emails</a>
-  <a href="/hr/skills" class="<%= active === 'skills' ? 'active' : '' %>">Skills</a>
 </nav>

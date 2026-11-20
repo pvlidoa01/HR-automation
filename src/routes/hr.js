@@ -276,26 +276,6 @@ export function hrRoutes() {
     res.redirect('/hr/emails');
   });
 
-  router.get('/skills', async (req, res) => {
-    const skills = await many(
-      `SELECT s.*, (SELECT count(*)::int FROM reviews r WHERE s.id IN (r.skill1_id, r.skill2_id, r.skill3_id)) AS used
-         FROM skills s ORDER BY s.draft, s.name`,
-    );
-    res.render('hr-skills', { title: 'Skills', skills });
-  });
-
-  router.post('/skills', async (req, res) => {
-    const name = String(req.body.name || '').replace(/\s+/g, ' ').trim().slice(0, 120);
-    const definition = String(req.body.definition || '').trim().slice(0, 2000) || null;
-    if (!name) {
-      flash(req, 'error', 'Enter a skill name.');
-      return res.redirect('/hr/skills');
-    }
-    const r = await query("INSERT INTO skills (name, definition, source) VALUES ($1, $2, 'hr') ON CONFLICT (name) DO NOTHING", [name, definition]);
-    flash(req, r.rowCount ? 'success' : 'error', r.rowCount ? `Added "${name}".` : `"${name}" is already in the list.`);
-    res.redirect('/hr/skills');
-  });
-
   router.get('/settings', async (req, res) => {
     const people = await many("SELECT * FROM users WHERE global_role IS NOT NULL ORDER BY global_role, name");
     res.render('hr-settings', { title: 'Access settings', people });

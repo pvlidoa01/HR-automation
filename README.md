@@ -55,7 +55,7 @@ points. They are only sent once Microsoft sign-in and `MAIL_FROM` are set up (se
 | Home | Managers and employees (not HR or the CEO) | What needs your attention |
 | My team | Anyone who writes or confirms reviews, HR and CEO included | Reviews to write and to confirm (count in the tab), and your branch of the tree |
 | HR dashboard (CEO: Dashboard) | HR admins and the CEO; where they land after signing in | The live view of a cycle; "Other cycles" to look back |
-| HR admin | HR admins only | Cycles (create, set up, all past cycles), Requests, Access, Emails, Skills |
+| HR admin | HR admins only | Cycles (create, set up, all past cycles), Requests, Access, Emails |
 | My reviews | Everyone | Your own reviews after release |
 
 ## Who sees what
