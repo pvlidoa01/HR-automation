@@ -7,14 +7,38 @@
   <a class="btn" href="/hr">Back to HR admin</a>
 </div>
 
-<div class="card">
-  <h3>1. Fill in the employee list</h3>
-  <p class="small">Download the template and fill in one row per person reviewed, with their manager. The manager writes the review and the manager's own manager confirms it; the reporting lines also build the organisation tree. Heads who are not reviewed don't need a row. Skills come from the dropdown (the 18 skills of the Notion Skill Base, each with its own behaviour checklist). A skill name that is not in the list is added automatically, without a checklist: managers then rate it 1–5 directly.</p>
-  <a class="btn" href="/hr/template.xlsx">Download Excel template</a>
+<div class="card" id="skills">
+  <h3>1. Sync the skills with Notion</h3>
+  <p class="small"><strong>Notion is the source of truth for skills.</strong> Every skill and its questionnaire is written in the Notion Skill Base, never in this app. To add a skill or change a questionnaire, do it <strong>in Notion first</strong>, then come back here and sync. Anything not in Notion does not reach this cycle.</p>
+  <% if (notionReady) { %>
+    <div class="btn-row" style="align-items:center">
+      <a class="btn primary" href="/hr/skills/notion?cycle=<%= cycle.id %>">Sync skills with Notion</a>
+      <a class="btn" href="https://www.notion.so/<%= skillBaseId %>" target="_blank" rel="noopener">Open the Skill Base in Notion</a>
+    </div>
+    <p class="small muted" style="margin-top:8px">Syncing shows every change first and applies nothing until you press Apply. The app has <%= skillCount %> skills now.</p>
+    <% if (skillsSynced) { %>
+      <div class="notice info small" style="margin-top:8px"><strong>Skills are synced</strong> with Notion (<%= fmtDateTime(lastSync.at) %>, <%= lastSync.by %>). If anyone edits Notion later, sync again before you initiate.</div>
+    <% } else { %>
+      <div class="notice warn small" style="margin-top:8px"><strong>Sync before you continue.</strong> The Excel template can be downloaded once the skills are synced for this cycle. This keeps the template's skill list and the questionnaires up to date.</div>
+    <% } %>
+  <% } else { %>
+    <div class="notice warn small"><strong>The app is not connected to Notion yet</strong>, so it uses its own copy of the <%= skillCount %> skills. A Notion admin needs to connect it (steps in <em>docs/notion-skills.md</em>) before skills can be synced. Until then ask Alessandro to update skills.</div>
+  <% } %>
 </div>
 
 <div class="card">
-  <h3>2. Upload it</h3>
+  <h3>2. Fill in the employee list</h3>
+  <p class="small">Download the template and fill in one row per person reviewed, with their manager. The manager writes the review and the manager's own manager confirms it; the reporting lines also build the organisation tree. Heads who are not reviewed don't need a row. Skills come from the dropdown (the skills of the Notion Skill Base, each with its own behaviour checklist). A skill name that is not in the list is added automatically, without a checklist: managers then rate it 1–5 directly.</p>
+  <% if (skillsSynced) { %>
+    <a class="btn" href="/hr/template.xlsx">Download Excel template</a>
+  <% } else { %>
+    <button class="btn" type="button" disabled title="Sync the skills with Notion first (step 1)">Download Excel template</button>
+    <span class="small muted">Available after step 1.</span>
+  <% } %>
+</div>
+
+<div class="card">
+  <h3>3. Upload it</h3>
   <p class="small muted">Uploading again replaces the whole list. Nothing is saved if the file has problems.</p>
   <form method="post" action="/hr/cycles/<%= cycle.id %>/roster" enctype="multipart/form-data" class="inline-form">
     <input type="hidden" name="_csrf" value="<%= csrfToken %>">
@@ -61,7 +85,7 @@
 <% } %>
 
 <div class="card">
-  <h3>3. Check the saved list</h3>
+  <h3>4. Check the saved list</h3>
   <% if (!saved.length) { %>
     <p class="muted">No list saved yet.</p>
   <% } else { %>
@@ -94,7 +118,7 @@
 </div>
 
 <div class="card">
-  <h3>4. Initiate the review cycle</h3>
+  <h3>5. Initiate the review cycle</h3>
   <p class="small">Each manager gets a review space with only their own reports, and (if turned on under HR → Emails) an email with their list and the deadline.</p>
   <div class="btn-row">
     <form method="post" action="/hr/cycles/<%= cycle.id %>/initiate">

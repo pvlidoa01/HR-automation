@@ -31,6 +31,16 @@ async function skillNames() {
   return (await many('SELECT name FROM skills ORDER BY draft, name')).map((r) => r.name);
 }
 
+const NOTION_SETTING = 'notion_skills';
+const getLastSync = async () => (await one('SELECT value FROM app_settings WHERE key = $1', [NOTION_SETTING]))?.value || null;
+const recordSync = (by, changed) => query(
+  `INSERT INTO app_settings (key, value) VALUES ($1, $2)
+   ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`,
+  [NOTION_SETTING, JSON.stringify({ at: new Date().toISOString(), by, changed })],
+);
+/** Where the Notion check sends HR back to: the set-up page it was started from, or HR admin. */
+const syncBack = (req) => (req.session.skillReturn ? `/hr/cycles/${req.session.skillReturn}/setup#skills` : '/hr#skills');
+
 async function renderSetup(res, cycleId, extra = {}) {
   const summary = await cycleSummary(cycleId);
   if (!summary) return res.status(404).render('error', { title: 'Not found', message: "This cycle doesn't exist." });
@@ -44,9 +54,20 @@ async function renderSetup(res, cycleId, extra = {}) {
   );
   for (const r of saved) r.skills = savedSkills.get(r.id) || [];
   const tree = buildTree(saved, res.locals.user, summary.cycle);
+  // The template can be downloaded once the skills were synced with Notion after this cycle was
+  // created. Without a Notion connection there is nothing to sync, so it stays available.
+  const notionReady = notionConfigured();
+  const lastSync = await getLastSync();
+  const skillsSynced = !notionReady || (!!lastSync && new Date(lastSync.at) >= new Date(summary.cycle.created_at));
+  const skillCount = skills.length;
   return res.status(extra.status || 200).render('hr-setup', {
     title: `Set up ${summary.cycle.name}`,
     ...summary,
+    notionReady,
+    lastSync,
+    skillsSynced,
+    skillCount,
+    skillBaseId: config.notion.skillBaseId,
     saved,
     roots: tree.roots,
     STATUS_LABELS,
@@ -68,37 +89,42 @@ export function hrRoutes() {
 
   // ---- Skills: update the questionnaires from the Notion Skill Base.
   router.get('/skills/notion', async (req, res) => {
-    if (!notionConfigured()) return res.redirect('/hr#skills');
+    // Started from a cycle's set-up page? Then HR comes back there afterwards.
+    const from = parseId(req.query.cycle);
+    const fromCycle = from ? await one("SELECT id FROM cycles WHERE id = $1 AND status = 'setup'", [from]) : null;
+    if (fromCycle) req.session.skillReturn = fromCycle.id; else delete req.session.skillReturn;
+    const back = syncBack(req);
+    if (!notionConfigured()) return res.redirect(back);
     let plan;
     try {
       plan = await planSkillSync(await readSkillBase());
     } catch (err) {
       console.error('Notion check failed:', err);
       flash(req, 'error', `Could not read Notion: ${err.message}`);
-      return res.redirect('/hr#skills');
+      return res.redirect(back);
     }
+    // Nothing to apply: the app already matches Notion, so this counts as synced.
+    if (!plan.some((p) => p.kind === 'new' || p.kind === 'update')) await recordSync(req.user.name, 0);
     // What HR sees is exactly what "Apply" applies.
     req.session.skillPlan = { at: Date.now(), plan };
-    res.render('hr-skills-notion', { title: 'Update skills from Notion', plan, LEVEL_KEYS });
+    res.render('hr-skills-notion', { title: 'Update skills from Notion', plan, LEVEL_KEYS, back });
   });
 
   router.post('/skills/notion', async (req, res) => {
     const saved = req.session.skillPlan;
     delete req.session.skillPlan;
+    const back = syncBack(req);
+    delete req.session.skillReturn;
     if (!saved || Date.now() - saved.at > 30 * 60 * 1000) {
       flash(req, 'error', 'That check is too old. Check Notion again, then apply.');
-      return res.redirect('/hr#skills');
+      return res.redirect(back);
     }
     const changed = await applySkillSync(saved.plan);
-    await query(
-      `INSERT INTO app_settings (key, value) VALUES ('notion_skills', $1)
-       ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`,
-      [JSON.stringify({ at: new Date().toISOString(), by: req.user.name, changed })],
-    );
+    await recordSync(req.user.name, changed);
     flash(req, 'success', changed
       ? `${changed} skill(s) updated from Notion. Cycles initiated from now on use the new questionnaires; running and past cycles keep theirs.`
       : 'Everything was already up to date.');
-    res.redirect('/hr#skills');
+    res.redirect(back);
   });
 
   router.get('/', async (req, res) => {
@@ -108,7 +134,7 @@ export function hrRoutes() {
                 WHERE c.status = 'open' AND s.id IN (r.skill1_id, r.skill2_id, r.skill3_id)) AS in_use
          FROM skills s ORDER BY s.draft, s.name`,
     );
-    const lastSync = (await one("SELECT value FROM app_settings WHERE key = 'notion_skills'"))?.value || null;
+    const lastSync = await getLastSync();
     const cycles = await many(
       `SELECT c.*, (SELECT count(*)::int FROM reviews r WHERE r.cycle_id = c.id) AS people,
               (SELECT count(*)::int FROM reviews r WHERE r.cycle_id = c.id AND r.status = 'closed') AS closed

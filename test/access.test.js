@@ -627,4 +627,34 @@ if (!dbUrl) {
     assert.equal((await pool.query("SELECT count(*)::int AS n FROM skills WHERE name = 'Problem Solving'")).rows[0].n, 1);
     config.notion.token = '';
   });
+
+  test('set-up page: the Excel template is locked until skills are synced with Notion', async () => {
+    const { config } = await import('../src/config.js');
+    const hr = await as('hr');
+    const cid = (await pool.query("INSERT INTO cycles (name, talent_bar) VALUES ('C10 setup', $1) RETURNING id", [JSON.stringify(TALENT_BAR)])).rows[0].id;
+    const page = async () => (await hr.get(`/hr/cycles/${cid}/setup`)).text;
+    await pool.query("DELETE FROM app_settings WHERE key = 'notion_skills'");
+    // Not connected to Notion: nothing to sync, the template stays available, with a clear notice.
+    config.notion.token = '';
+    let html = await page();
+    assert.match(html, /Sync the skills with Notion/);
+    assert.match(html, /not connected to Notion yet/);
+    assert.match(html, /href="\/hr\/template\.xlsx"/);
+    // Connected but never synced: locked, and the source-of-truth guidance is shown.
+    config.notion.token = 'test-token';
+    html = await page();
+    assert.match(html, /Notion is the source of truth/);
+    assert.match(html, /Sync before you continue/);
+    assert.doesNotMatch(html, /href="\/hr\/template\.xlsx"/);
+    assert.match(html, /href="\/hr\/skills\/notion\?cycle=\d+"/);
+    // A sync recorded after the cycle was created unlocks it.
+    await pool.query("INSERT INTO app_settings (key, value) VALUES ('notion_skills', $1)", [JSON.stringify({ at: new Date(Date.now() + 1000).toISOString(), by: 'Daria', changed: 0 })]);
+    html = await page();
+    assert.match(html, /Skills are synced/);
+    assert.match(html, /href="\/hr\/template\.xlsx"/);
+    // A sync older than the cycle does not count.
+    await pool.query("UPDATE app_settings SET value = $1 WHERE key = 'notion_skills'", [JSON.stringify({ at: '2020-01-01T00:00:00.000Z', by: 'Daria', changed: 0 })]);
+    assert.doesNotMatch(await page(), /href="\/hr\/template\.xlsx"/);
+    config.notion.token = '';
+  });
 }

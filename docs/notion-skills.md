@@ -43,3 +43,11 @@ in the app (old reviews use them); they are listed as "Not in Notion".
 
 Each cycle keeps the questionnaire it had when HR initiated it, so answers already given never get
 mixed up. An update applies to cycles initiated afterwards, including cycles still being set up.
+
+## Syncing is step 1 of every new cycle
+
+On a cycle's set-up page, step 1 is **Sync skills with Notion**. The page reminds HR that Notion is the
+source of truth: skills and questionnaires are only ever written in Notion, and anything not in Notion
+does not reach the cycle. The **Excel template download is locked** until a sync (an applied update, or a
+check where nothing needed changing) has been recorded after the cycle was created. If the app is not
+connected to Notion yet, nothing can be synced, so the template stays available with a notice.

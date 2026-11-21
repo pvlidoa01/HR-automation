@@ -13,10 +13,10 @@ Cycles already initiated keep the questionnaire they started with; the changes a
   <form method="post" action="/hr/skills/notion" class="card btn-row" style="align-items:center;justify-content:space-between">
     <input type="hidden" name="_csrf" value="<%= csrfToken %>">
     <span><strong><%= changes.length %></strong> skill<%= changes.length === 1 ? '' : 's' %> to add or update.</span>
-    <span class="btn-row"><a class="btn" href="/hr#skills">Cancel</a><button class="btn primary" type="submit">Apply <%= changes.length %> change<%= changes.length === 1 ? '' : 's' %></button></span>
+    <span class="btn-row"><a class="btn" href="<%= back %>">Cancel</a><button class="btn primary" type="submit">Apply <%= changes.length %> change<%= changes.length === 1 ? '' : 's' %></button></span>
   </form>
 <% } else { %>
-  <div class="notice info">The app already matches Notion<% if (plan.some((p) => p.kind === 'problem')) { %>, apart from the problems below<% } %>. <a href="/hr#skills">Back</a></div>
+  <div class="notice info">The app already matches Notion<% if (plan.some((p) => p.kind === 'problem')) { %>, apart from the problems below<% } %>. <a href="<%= back %>">Back</a></div>
 <% } %>
 
 <div class="card table-wrap" style="padding:0">
