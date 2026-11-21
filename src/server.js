@@ -13,6 +13,13 @@ if (config.allowTestLogin) {
 // Log instead of crashing if a stray promise fails.
 process.on('unhandledRejection', (err) => console.error('Unhandled rejection:', err));
 
-createApp().listen(config.port, '0.0.0.0', () => {
+// Express 5 passes a start-up error (for example "port already in use") to this callback.
+createApp().listen(config.port, '0.0.0.0', (err) => {
+  if (err) {
+    console.error(err.code === 'EADDRINUSE'
+      ? `Port ${config.port} is already in use: an older copy of the app is still running. Stop it first.`
+      : `The app could not start: ${err.message}`);
+    process.exit(1);
+  }
   console.log(`R3 Performance Review running on port ${config.port}`);
 });
