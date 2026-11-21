@@ -223,6 +223,27 @@ export function hrRoutes() {
     res.redirect('/hr');
   });
 
+  // Cancel an initiated cycle (open or released): deletes the cycle with all its reviews, ratings,
+  // comments and change history. Final. HR must type the cycle's name. No emails are sent.
+  router.post('/cycles/:id/cancel', async (req, res) => {
+    const cycleId = Number(req.params.id);
+    const cycle = await one('SELECT id, name, status FROM cycles WHERE id = $1', [cycleId]);
+    if (!cycle) return res.status(404).render('error', { title: 'Not found', message: "This cycle doesn't exist." });
+    if (cycle.status === 'setup') {
+      flash(req, 'error', 'This cycle is not initiated yet. Delete it from its set-up page.');
+      return res.redirect(`/hr/cycles/${cycleId}/setup`);
+    }
+    if (String(req.body.confirmName || '').trim().toLowerCase() !== cycle.name.toLowerCase()) {
+      flash(req, 'error', `Nothing was deleted: the name you typed doesn't match "${cycle.name}".`);
+      return res.redirect(`/cycles/${cycleId}#cancel`);
+    }
+    const n = (await one('SELECT count(*)::int AS n FROM reviews WHERE cycle_id = $1', [cycleId])).n;
+    await query('DELETE FROM cycles WHERE id = $1', [cycleId]); // reviews, comments, history and frozen questionnaires go with it
+    console.log(`Cycle "${cycle.name}" (${cycle.status}, ${n} reviews) cancelled and deleted by ${req.user.email}`);
+    flash(req, 'success', `"${cycle.name}" was cancelled and deleted, with its ${n} review${n === 1 ? '' : 's'}.`);
+    res.redirect('/hr');
+  });
+
   router.post('/cycles/:id/release', async (req, res) => {
     const cycleId = Number(req.params.id);
     if (req.body.confirm !== 'yes') {

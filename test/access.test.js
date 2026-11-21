@@ -657,4 +657,31 @@ if (!dbUrl) {
     assert.doesNotMatch(await page(), /href="\/hr\/template\.xlsx"/);
     config.notion.token = '';
   });
+
+  test('HR can cancel an initiated cycle for good, only by typing its name; managers cannot', async () => {
+    const hr = await as('hr');
+    const cid = await makeCycle('C11 cancel', [['empZ', 'Z', 'mZ']]);
+    await initiateCycle(cid);
+    const rid = await reviewId(cid, 'empZ');
+    const post = (agent, id, body) => agent.post(`/hr/cycles/${id}/cancel`).type('form').send({ _csrf: agent.csrf, ...body });
+    const exists = async () => (await pool.query('SELECT count(*)::int AS n FROM cycles WHERE id = $1', [cid])).rows[0].n;
+    assert.match((await hr.get(`/cycles/${cid}`)).text, /Cancel and delete this cycle/);
+    // A manager is refused.
+    const mgr = await as('mZ');
+    assert.equal((await post(mgr, cid, { confirmName: 'C11 cancel' })).status, 403);
+    assert.equal(await exists(), 1);
+    // Wrong name: nothing happens.
+    assert.equal((await post(hr, cid, { confirmName: 'something else' })).status, 302);
+    assert.equal(await exists(), 1);
+    // Right name: the cycle and everything under it is gone; the people stay.
+    const res = await post(hr, cid, { confirmName: ' c11 CANCEL ' });
+    assert.equal(res.status, 302);
+    assert.equal(await exists(), 0);
+    assert.equal((await pool.query('SELECT count(*)::int AS n FROM reviews WHERE id = $1', [rid])).rows[0].n, 0);
+    assert.equal((await pool.query('SELECT count(*)::int AS n FROM users WHERE email = $1', [E('empZ')])).rows[0].n, 1);
+    // Not for cycles still being set up (those have their own Delete).
+    const setupId = (await pool.query("INSERT INTO cycles (name, talent_bar) VALUES ('C12 setup', $1) RETURNING id", [JSON.stringify(TALENT_BAR)])).rows[0].id;
+    await post(hr, setupId, { confirmName: 'C12 setup' });
+    assert.equal((await pool.query('SELECT count(*)::int AS n FROM cycles WHERE id = $1', [setupId])).rows[0].n, 1);
+  });
 }

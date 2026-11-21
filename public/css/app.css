@@ -236,7 +236,8 @@ code { background: var(--surface-2); padding: 1px 5px; border-radius: 4px; }
 .cycle-switch ul { list-style: none; margin: 0; padding: 4px 0; min-width: 220px; }
 .cycle-switch li { padding: 4px 8px; display: flex; justify-content: space-between; gap: 8px; }
 .cycle-switch a.active { font-weight: 700; }
-.late-joiner summary { cursor: pointer; }
+.late-joiner summary, .cancel-cycle summary { cursor: pointer; }
+.cancel-cycle { border-color: var(--bad); }
 .subtabs { display: flex; flex-wrap: wrap; gap: 4px; border-bottom: 1px solid var(--border); margin: -4px 0 20px; }
 .subtabs a { padding: 8px 14px; text-decoration: none; color: var(--muted); border-bottom: 2px solid transparent; margin-bottom: -1px; }
 .subtabs a.active { color: inherit; border-bottom-color: var(--accent, #1d5c78); font-weight: 600; }
