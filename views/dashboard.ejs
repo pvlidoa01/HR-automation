@@ -10,7 +10,6 @@
     { key: 'submitted', label: 'Waiting for confirmation', n: counts.submitted },
     { key: 'closed', label: 'Completed', n: counts.closed },
   ];
-  const fmtShort = (d) => new Date(d).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
   const viewHref = (v) => `/cycles/${cycle.id}${v === 'reviews' ? '' : `?view=${v}`}`;
 %>
 <div class="page-head">

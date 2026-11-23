@@ -255,3 +255,4 @@ code { background: var(--surface-2); padding: 1px 5px; border-radius: 4px; }
 .sync-level li.added { color: #1f6b3e; background: #e6f4ea; }
 .sync-level li.removed { color: #8a2a1f; text-decoration: line-through; }
 [data-activity-status].err { color: var(--bad); }
+.activity-details { margin: 4px 0 0; padding-left: 18px; color: var(--text, inherit); overflow-wrap: anywhere; }

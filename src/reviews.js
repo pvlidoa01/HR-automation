@@ -1,6 +1,6 @@
 // Loading and saving reviews.
 import { query, one, many, tx } from './db.js';
-import { DIMENSIONS, STATEMENTS, DIMENSION_INTROS, LEVEL_KEYS } from './shared/framework.js';
+import { DIMENSIONS, STATEMENTS, DIMENSION_INTROS, LEVEL_KEYS, levelLabel } from './shared/framework.js';
 import { computeGrades } from './shared/scoring.js';
 import { hasChecklist } from './shared/checklist.js';
 import { canEditNow } from './access.js';
@@ -110,10 +110,10 @@ export async function teamTodo(userId) {
 export async function getActivity(reviewId) {
   return many(
     `SELECT 'comment' AS kind, k.id, k.created_at AS at, k.user_id, u.name AS user_name, k.body,
-            NULL AS field, NULL AS old_value, NULL AS new_value
+            NULL AS field, NULL AS old_value, NULL AS new_value, NULL AS details
        FROM review_comments k LEFT JOIN users u ON u.id = k.user_id WHERE k.review_id = $1
      UNION ALL
-     SELECT 'change', l.id, l.at, l.user_id, u.name, NULL, l.field, l.old_value, l.new_value
+     SELECT 'change', l.id, l.at, l.user_id, u.name, NULL, l.field, l.old_value, l.new_value, l.details
        FROM change_log l LEFT JOIN users u ON u.id = l.user_id WHERE l.review_id = $1
      ORDER BY at DESC, id DESC`,
     [reviewId],
@@ -250,14 +250,19 @@ export async function saveReview(user, detail, body, action, role, confirmerId =
         [review.id, u.key, u.rating, u.feedback, JSON.stringify(u.checklist)],
       );
       if (logChanges) {
-        if ((u.before.rating ?? null) !== u.rating) {
-          await log(client, review.id, user.id, `${u.label}: rating`, u.before.rating, u.rating);
-        }
-        if ((u.before.feedback || '') !== u.feedback) {
-          await log(client, review.id, user.id, `${u.label}: feedback`, u.before.feedback, u.feedback);
-        }
-        if (JSON.stringify(normalizeChecklist(u.before.checklist)) !== JSON.stringify(normalizeChecklist(u.checklist))) {
-          await log(client, review.id, user.id, `${u.label}: checklist answers changed`, null, null);
+        // One entry per dimension and save: rating, which statements changed, and the feedback.
+        const parts = [];
+        if ((u.before.rating ?? null) !== u.rating) parts.push(`rating ${ratingText(u.before.rating)} → ${ratingText(u.rating)}`);
+        const statementChanges = checklistChanges(u.before.statements, u.before.checklist, u.checklist);
+        if (statementChanges.length && !parts.length) parts.push('checklist changed');
+        const feedbackChanged = (u.before.feedback || '') !== u.feedback;
+        if (feedbackChanged) parts.push('feedback');
+        if (parts.length) {
+          await log(
+            client, review.id, user.id, `${u.label}: ${parts.join(', ')}`,
+            feedbackChanged ? u.before.feedback : null, feedbackChanged ? u.feedback : null,
+            statementChanges.length ? statementChanges.join('\n') : null,
+          );
         }
       }
     }
@@ -293,10 +298,31 @@ function normalizeChecklist(c) {
   return out;
 }
 
-export async function log(client, reviewId, userId, field, oldValue, newValue) {
+const ratingText = (v) => (v == null ? 'not set' : `${v} · ${levelLabel(v)}`);
+const answerText = (a) => (a === 'yes' ? 'Yes' : a === 'no' ? 'No' : 'not answered');
+
+/** One line per checklist statement whose answer changed: "“Statement” Yes → No". */
+function checklistChanges(statements, before, after) {
+  const lines = [];
+  const b = normalizeChecklist(before);
+  const a = normalizeChecklist(after);
+  for (const lvl of LEVEL_KEYS) {
+    const indexes = new Set([...Object.keys(b[lvl] || {}), ...Object.keys(a[lvl] || {})].map(Number));
+    for (const i of [...indexes].sort((x, y) => x - y)) {
+      const from = b[lvl]?.[i];
+      const to = a[lvl]?.[i];
+      if (from === to) continue;
+      const text = statements?.[lvl]?.[i] || `${lvl} statement ${i + 1}`;
+      lines.push(`“${text}” ${answerText(from)} → ${answerText(to)}`);
+    }
+  }
+  return lines;
+}
+
+export async function log(client, reviewId, userId, field, oldValue, newValue, details = null) {
   await client.query(
-    'INSERT INTO change_log (review_id, user_id, field, old_value, new_value) VALUES ($1, $2, $3, $4, $5)',
-    [reviewId, userId, field, oldValue == null ? null : String(oldValue), newValue == null ? null : String(newValue)],
+    'INSERT INTO change_log (review_id, user_id, field, old_value, new_value, details) VALUES ($1, $2, $3, $4, $5, $6)',
+    [reviewId, userId, field, oldValue == null ? null : String(oldValue), newValue == null ? null : String(newValue), details],
   );
 }
 

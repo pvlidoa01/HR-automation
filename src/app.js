@@ -64,8 +64,9 @@ export function createApp() {
     res.locals.gradeLabel = gradeLabel;
     res.locals.SENIORITIES = SENIORITIES;
     res.locals.path = req.path;
-    res.locals.fmtDate = (d) => (d ? new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '');
-    res.locals.fmtDateTime = (d) => (d ? new Date(d).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '');
+    res.locals.fmtDate = (d) => (d ? new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: config.timeZone }) : '');
+    res.locals.fmtDateTime = (d) => (d ? new Date(d).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: config.timeZone }) : '');
+    res.locals.fmtShort = (d) => (d ? new Date(d).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: config.timeZone }) : '');
     res.locals.flash = null;
     res.locals.user = null;
     res.locals.csrfToken = '';

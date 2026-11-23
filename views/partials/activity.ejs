@@ -32,6 +32,7 @@
             <div class="activity-body"><%= a.body %></div>
           <% } else { %>
             <div class="activity-change"><%= a.field %></div>
+            <% if (a.details) { %><ul class="activity-details small"><% a.details.split('\n').forEach(line => { %><li><%= line %></li><% }) %></ul><% } %>
             <% if (a.old_value != null || a.new_value != null) { %>
               <% const long = (a.old_value || '').length + (a.new_value || '').length > 160; %>
               <% if (long) { %><details><summary class="small">Show the change</summary><% } %>

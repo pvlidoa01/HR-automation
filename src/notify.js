@@ -182,7 +182,7 @@ export async function notifyInitiated(cycleId) {
       WHERE r.cycle_id = $1 GROUP BY m.id ORDER BY m.name`,
     [cycleId],
   );
-  const due = cycle.deadline ? new Date(cycle.deadline).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : null;
+  const due = cycle.deadline ? new Date(cycle.deadline).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: config.timeZone }) : null;
   for (const m of managers) {
     await queueEmail('cycle_initiated', m,
       `Performance reviews ${cycle.name}: ${m.n} to write`,

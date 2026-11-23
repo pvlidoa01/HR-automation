@@ -6,6 +6,8 @@ const isProduction = env.NODE_ENV === 'production' || env.REPLIT_DEPLOYMENT === 
 export const config = {
   isProduction,
   port: Number(env.PORT || 3000),
+  // Times on screen and in emails are shown in this time zone (the server itself runs on UTC).
+  timeZone: env.APP_TIMEZONE || 'Europe/Luxembourg',
   baseUrl: (env.APP_BASE_URL || `http://localhost:${env.PORT || 3000}`).replace(/\/$/, ''),
   databaseUrl: env.DATABASE_URL,
   // Replit's managed Postgres requires SSL; a local database usually doesn't.

@@ -259,7 +259,7 @@ if (!dbUrl) {
     assert.equal(await status(ids.r1), before, 'the CEO\'s edit does not change the step');
     const log = (await pool.query(
       'SELECT l.field, u.email FROM change_log l JOIN users u ON u.id = l.user_id WHERE l.review_id = $1', [ids.r1])).rows;
-    assert.ok(log.some((l) => l.field === 'Impact: rating' && l.email === E('ceo')), JSON.stringify(log));
+    assert.ok(log.some((l) => /^Impact: rating .+ → 4 · /.test(l.field) && l.email === E('ceo')), JSON.stringify(log));
     assert.equal((await ceo.get('/hr')).status, 403);
     const reopen = await ceo.post(`/hr/reviews/${ids.r1}/reopen`).type('form').send({ _csrf: ceo.csrf });
     assert.equal(reopen.status, 403, 'reopening stays with HR');
@@ -272,7 +272,7 @@ if (!dbUrl) {
     });
     assert.equal(res.status, 302);
     const log = (await pool.query('SELECT field, old_value, new_value FROM change_log WHERE review_id = $1 ORDER BY id', [ids.r1])).rows;
-    assert.ok(log.some((l) => l.field === 'Quality: rating' && l.old_value === '3' && l.new_value === '5'), JSON.stringify(log));
+    assert.ok(log.some((l) => /^Quality: rating 3 · .+ → 5 · /.test(l.field)), JSON.stringify(log));
     assert.equal(await status(ids.r1), 'closed', 'HR does not submit on anyone\'s behalf');
     const mA = await as('mA');
     assert.match((await mA.get(`/reviews/${ids.r1}`)).text, /Quality: rating/);
@@ -435,8 +435,10 @@ if (!dbUrl) {
     assert.equal(conflict.status, 409);
     const impact = (await pool.query("SELECT rating FROM review_dimensions WHERE review_id = $1 AND dimension = 'impact'", [emp5])).rows[0].rating;
     assert.equal(impact, 4, 'HR change kept');
-    const log = (await pool.query('SELECT field FROM change_log WHERE review_id = $1', [emp5])).rows.map((r) => r.field);
-    assert.ok(log.includes('Impact: checklist answers changed'), JSON.stringify(log));
+    const log = (await pool.query('SELECT field, details FROM change_log WHERE review_id = $1', [emp5])).rows;
+    const impactLog = log.filter((l) => l.field.startsWith('Impact: '));
+    assert.equal(impactLog.length, 1, `one entry for the dimension, rating and checklist together: ${JSON.stringify(log)}`);
+    assert.match(impactLog[0].details, /^“.+” not answered → No$/, 'says which statement changed');
 
     // A multipart post without a token is refused (only the roster upload is multipart).
     const mp = await mD.post(`/reviews/${emp5}`).field('action', 'save');
