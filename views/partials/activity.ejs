@@ -10,13 +10,17 @@
       <input type="hidden" name="_csrf" value="<%= csrfToken %>">
       <label for="comment-body" class="small">Add a message</label>
       <textarea id="comment-body" name="body" required maxlength="5000" placeholder="e.g. Why was this rating changed? I saw it differently because…"></textarea>
-      <button class="btn small" type="submit">Post</button>
+      <div class="btn-row" style="align-items:center">
+        <button class="btn small" type="submit">Post</button>
+        <span class="small" data-activity-status role="status"></span>
+      </div>
     </form>
+    <script type="module" src="/static/js/activity.js"></script>
   <% } %>
   <% if (!activity.length) { %>
-    <p class="small muted">Nothing yet. Changes made after the manager's first submit, and every change by HR or the CEO, appear here.</p>
+    <p class="small muted" data-activity-empty>Nothing yet. Changes made after the manager's first submit, and every change by HR or the CEO, appear here.</p>
   <% } else { %>
-    <ul class="activity-list">
+    <ul class="activity-list" data-activity-list>
       <% activity.forEach(a => { const isNew = a.user_id !== user.id && (!newSince || new Date(a.at) > new Date(newSince)); %>
         <li class="<%= a.kind %><%= isNew ? ' is-new' : '' %>">
           <div class="activity-head">

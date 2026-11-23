@@ -102,18 +102,28 @@ export function reviewRoutes() {
     return res.redirect(`/reviews/${id}`);
   });
 
+  // Posting a message. The review page sends it in the background (header X-Requested-With: fetch)
+  // so that unsaved changes in the review form are kept; without JavaScript it is a normal form post.
   router.post('/reviews/:id/comments', async (req, res) => {
+    const inBackground = req.get('x-requested-with') === 'fetch';
+    const fail = (status, error) => (inBackground ? res.status(status).json({ ok: false, error }) : null);
     const id = parseId(req.params.id);
-    if (!id) return notFound(res);
+    if (!id) return fail(404, 'This review does not exist.') || notFound(res);
     const { access } = await loadReviewWithAccess(req.user, id);
-    if (!access.canSeeChangeLog) return notFound(res);
+    if (!access.canSeeChangeLog) return fail(404, 'This review does not exist.') || notFound(res);
     if (!access.canComment) {
+      if (inBackground) return fail(403, 'The discussion is closed for this review.');
       flash(req, 'error', 'The discussion is closed for this review.');
       return res.redirect(`/reviews/${id}#activity`);
     }
     const result = await addComment(id, req.user.id, req.body?.body);
+    if (result.ok) await markSeen(req.user.id, id);
+    if (inBackground) {
+      if (!result.ok) return fail(400, result.error);
+      const c = result.comment;
+      return res.json({ ok: true, comment: { id: c.id, body: c.body, at: c.created_at, atLabel: res.locals.fmtDateTime(c.created_at), user_name: req.user.name } });
+    }
     if (!result.ok) flash(req, 'error', result.error);
-    else await markSeen(req.user.id, id);
     return res.redirect(`/reviews/${id}#activity`);
   });
 

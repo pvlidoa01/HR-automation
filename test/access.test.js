@@ -499,6 +499,16 @@ if (!dbUrl) {
     assert.equal((await say(mY, 'I disagree on Ownership')).status, 302, 'manager can still comment after submitting');
     assert.equal((await say(mY, '   ')).status, 302);
     assert.equal((await pool.query('SELECT count(*)::int AS n FROM review_comments WHERE review_id = $1', [id])).rows[0].n, 3, 'empty message ignored');
+    // Posted in the background from the review page (keeps unsaved form changes): JSON, no reload.
+    const bg = (agent, body) => agent.post(`/reviews/${id}/comments`).set('X-Requested-With', 'fetch').type('form').send({ _csrf: agent.csrf, body });
+    const ok = await bg(mY, 'BACKGROUND-NOTE <b>');
+    assert.equal(ok.status, 200);
+    assert.equal(ok.body.ok, true);
+    assert.equal(ok.body.comment.body, 'BACKGROUND-NOTE <b>');
+    assert.ok(ok.body.comment.user_name && ok.body.comment.atLabel);
+    assert.equal((await bg(mY, '  ')).body.ok, false, 'empty message refused');
+    assert.equal((await bg(await as('emp1'), 'stranger')).status, 404);
+    assert.equal((await pool.query('SELECT count(*)::int AS n FROM review_comments WHERE review_id = $1', [id])).rows[0].n, 4);
 
     // Released cycle: discussion is read-only and never shown to the employee.
     assert.equal((await postReview(headY, id, { action: 'submit', ...allRatings(3) })).status, 302);

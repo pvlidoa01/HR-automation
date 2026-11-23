@@ -123,8 +123,11 @@ export async function getActivity(reviewId) {
 export async function addComment(reviewId, userId, text) {
   const body = cleanText(text, 5000);
   if (!body) return { ok: false, error: 'Write a message first.' };
-  await query('INSERT INTO review_comments (review_id, user_id, body) VALUES ($1, $2, $3)', [reviewId, userId, body]);
-  return { ok: true };
+  const res = await query(
+    'INSERT INTO review_comments (review_id, user_id, body) VALUES ($1, $2, $3) RETURNING id, body, created_at',
+    [reviewId, userId, body],
+  );
+  return { ok: true, comment: res.rows[0] };
 }
 
 /** Remembers that this person has seen everything on the review up to now. */
