@@ -47,6 +47,9 @@ function updateGrades() {
   });
 }
 
+// The rating follows the checklist ("auto") unless someone picked a different level by hand.
+// This also holds for a review opened again later, e.g. by the second level, HR or the CEO:
+// a saved rating that matches the saved checklist keeps following it when statements change.
 function updateSuggestion(section, fromChecklist) {
   const key = section.dataset.dim;
   const statements = data.statements[key];
@@ -58,14 +61,25 @@ function updateSuggestion(section, fromChecklist) {
     out.textContent = 'Answer the statements to get a suggested level.';
     return;
   }
-  out.textContent = `Suggested level: ${level} · ${levelLabel(level)}`;
-  // Fill the rating from the checklist unless the manager picked a different level by hand.
   if (fromChecklist && select && (select.value === '' || select.dataset.auto === '1')) {
     select.value = String(level);
     select.dataset.auto = '1';
   }
+  out.textContent = `Suggested level: ${level} · ${levelLabel(level)}`;
   if (select && select.value !== '' && Number(select.value) !== level) {
-    out.textContent += ` (you chose ${select.value} · ${levelLabel(Number(select.value))})`;
+    out.append(` (rating set by hand to ${select.value} · ${levelLabel(Number(select.value))}) `);
+    const use = document.createElement('button');
+    use.type = 'button';
+    use.className = 'btn small';
+    use.textContent = `Use ${level} · ${levelLabel(level)}`;
+    use.addEventListener('click', () => {
+      select.value = String(level);
+      select.dataset.auto = '1';
+      dirty = true;
+      updateSuggestion(section, false);
+      updateGrades();
+    });
+    out.append(use);
   }
 }
 
@@ -89,5 +103,14 @@ window.addEventListener('beforeunload', (e) => {
   }
 });
 
-document.querySelectorAll('section.dim').forEach((s) => updateSuggestion(s, false));
+// On opening: a saved rating that equals what the saved checklist suggests follows the checklist.
+document.querySelectorAll('section.dim').forEach((section) => {
+  const select = section.querySelector('select[data-rating]');
+  const statements = data.statements[section.dataset.dim];
+  if (select && statements) {
+    const level = suggestLevel(statements, readAnswers(section.dataset.dim));
+    select.dataset.auto = select.value === '' || (level != null && Number(select.value) === level) ? '1' : '0';
+  }
+  updateSuggestion(section, false);
+});
 updateGrades();
