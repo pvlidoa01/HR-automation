@@ -665,7 +665,8 @@ if (!dbUrl) {
     const rid = await reviewId(cid, 'empZ');
     const post = (agent, id, body) => agent.post(`/hr/cycles/${id}/cancel`).type('form').send({ _csrf: agent.csrf, ...body });
     const exists = async () => (await pool.query('SELECT count(*)::int AS n FROM cycles WHERE id = $1', [cid])).rows[0].n;
-    assert.match((await hr.get(`/cycles/${cid}`)).text, /Cancel and delete this cycle/);
+    assert.doesNotMatch((await hr.get(`/cycles/${cid}`)).text, /\/cancel"|Cancel cycle|for good/, 'the dashboard is only a view on the cycle');
+    assert.match((await hr.get('/hr')).text, new RegExp(`action="/hr/cycles/${cid}/cancel"`), 'cancelling is in HR admin');
     // A manager is refused.
     const mgr = await as('mZ');
     assert.equal((await post(mgr, cid, { confirmName: 'C11 cancel' })).status, 403);

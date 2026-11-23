@@ -21,13 +21,30 @@
       <thead><tr><th>Cycle</th><th>Status</th><th>Deadline</th><th>People</th><th>Completed</th><th></th></tr></thead>
       <tbody>
         <% cycles.forEach(c => { %>
-          <tr>
+          <tr id="cycle-<%= c.id %>">
             <td><strong><%= c.name %></strong></td>
             <td><span class="badge cycle-<%= c.status %>"><%= { setup: 'Being set up', open: 'Open', released: 'Released' }[c.status] %></span></td>
             <td><%= fmtDate(c.deadline) %></td>
             <td><%= c.people %></td>
             <td><%= c.status === 'setup' ? '—' : `${c.closed} / ${c.people}` %></td>
-            <td><a class="btn small" href="<%= c.status === 'setup' ? `/hr/cycles/${c.id}/setup` : `/cycles/${c.id}` %>"><%= c.status === 'setup' ? 'Continue set-up' : 'Open in dashboard' %></a></td>
+            <td class="cycle-actions">
+              <a class="btn small" href="<%= c.status === 'setup' ? `/hr/cycles/${c.id}/setup` : `/cycles/${c.id}` %>"><%= c.status === 'setup' ? 'Continue set-up' : 'Open in dashboard' %></a>
+              <% if (c.status !== 'setup') { %>
+                <details class="inline-menu cycle-cancel">
+                  <summary class="small">Cancel cycle</summary>
+                  <form method="post" action="/hr/cycles/<%= c.id %>/cancel">
+                    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                    <div class="notice error small">
+                      <strong>Permanently deletes "<%= c.name %>"</strong> with all <%= c.people %> review<%= c.people === 1 ? '' : 's' %>, their ratings, comments and change history. Can't be undone. No email is sent, so tell the managers yourself.
+                      <% if (c.status === 'released') { %><br><strong>Already released:</strong> employees will lose access to their reviews.<% } %>
+                    </div>
+                    <label class="small" for="confirm-<%= c.id %>">Type the cycle name to confirm: <strong><%= c.name %></strong></label>
+                    <input id="confirm-<%= c.id %>" type="text" name="confirmName" autocomplete="off" required>
+                    <button class="btn small danger" type="submit">Delete <%= c.name %> for good</button>
+                  </form>
+                </details>
+              <% } %>
+            </td>
           </tr>
         <% }) %>
       </tbody>

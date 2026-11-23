@@ -189,23 +189,5 @@
   </details>
 <% } %>
 
-<% if (isHrUser) { %>
-  <details class="card cancel-cycle" id="cancel">
-    <summary><strong>Cancel and delete this cycle</strong></summary>
-    <form method="post" action="/hr/cycles/<%= cycle.id %>/cancel" style="margin-top:12px">
-      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-      <div class="notice error small">
-        <strong>This permanently deletes "<%= cycle.name %>"</strong>: all <%= total %> review<%= total === 1 ? '' : 's' %> with their ratings, comments and change history. It can't be undone and no email is sent, so tell the managers yourself.
-        <% if (cycle.status === 'released') { %><br><strong>Reviews were already released:</strong> employees will lose access to theirs.<% } %>
-      </div>
-      <div class="field" style="margin-top:10px">
-        <label for="confirm-name">To confirm, type the cycle name: <strong><%= cycle.name %></strong></label>
-        <input id="confirm-name" type="text" name="confirmName" autocomplete="off" required>
-      </div>
-      <button class="btn danger" type="submit">Delete <%= cycle.name %> for good</button>
-    </form>
-  </details>
-<% } %>
-
 <script type="module" src="/static/js/dashboard.js"></script>
 <%- include('partials/footer') %>

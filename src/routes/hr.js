@@ -230,12 +230,12 @@ export function hrRoutes() {
     const cycle = await one('SELECT id, name, status FROM cycles WHERE id = $1', [cycleId]);
     if (!cycle) return res.status(404).render('error', { title: 'Not found', message: "This cycle doesn't exist." });
     if (cycle.status === 'setup') {
-      flash(req, 'error', 'This cycle is not initiated yet. Delete it from its set-up page.');
+      flash(req, 'error', 'This cycle is not initiated yet. Delete it from its set-up page (Continue set-up).');
       return res.redirect(`/hr/cycles/${cycleId}/setup`);
     }
     if (String(req.body.confirmName || '').trim().toLowerCase() !== cycle.name.toLowerCase()) {
       flash(req, 'error', `Nothing was deleted: the name you typed doesn't match "${cycle.name}".`);
-      return res.redirect(`/cycles/${cycleId}#cancel`);
+      return res.redirect(`/hr#cycle-${cycleId}`);
     }
     const n = (await one('SELECT count(*)::int AS n FROM reviews WHERE cycle_id = $1', [cycleId])).n;
     await query('DELETE FROM cycles WHERE id = $1', [cycleId]); // reviews, comments, history and frozen questionnaires go with it
