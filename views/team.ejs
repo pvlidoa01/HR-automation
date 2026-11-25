@@ -27,6 +27,7 @@
       </p>
       <ul class="small">
         <li>Write a review for each person who reports to you<%= g.deadline ? ` by ${fmtDate(g.deadline)}` : '' %>.</li>
+        <li class="howto-note"><strong>Not sure how to fill one in?</strong> Each review has a step-by-step guide right at the top: "How this review works".</li>
         <% if (g.confirmer) { %>
           <li>When you submit, <strong><%= g.confirmer %></strong> checks it and confirms it. Then it's complete.</li>
         <% } else { %>
