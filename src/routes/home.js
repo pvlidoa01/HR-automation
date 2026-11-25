@@ -1,7 +1,7 @@
 import express from 'express';
 import { one, many } from '../db.js';
 import { listReviews, attachNewActivity, teamTodo, STATUS_LABELS } from '../reviews.js';
-import { seesEverything, parseId } from '../access.js';
+import { seesEverything, parseId, confirmerFor } from '../access.js';
 import { cycleSummary } from '../cycles.js';
 import { buildTree } from '../org.js';
 
@@ -68,7 +68,23 @@ export function homeRoutes() {
       const rows = await listReviews('r.cycle_id = $1', [cycle.id]);
       const tree = buildTree(rows, req.user, cycle, { rootUserId: req.user.id });
       await attachNewActivity(req.user.id, rows, (r) => r.access?.canSeeChangeLog);
-      groups.push({ ...cycle, roots: tree.roots });
+      // Who confirms this person's reviews, and whose reviews they confirm, to explain only the
+      // steps that apply to them. The CEO is never a second level.
+      let confirmer = null;
+      let confirmsFor = [];
+      if (cycle.status === 'open' && req.user.global_role !== 'viewer_all') {
+        const cid = await confirmerFor(cycle.id, req.user.id);
+        if (cid) confirmer = (await one('SELECT name FROM users WHERE id = $1', [cid]))?.name || null;
+        confirmsFor = (await many(
+          `SELECT DISTINCT m.name FROM reviews r
+             JOIN reviews mr ON mr.cycle_id = r.cycle_id AND mr.employee_id = r.reviewer_id
+             JOIN users m ON m.id = r.reviewer_id
+            WHERE r.cycle_id = $1 AND mr.reviewer_id = $2 AND r.employee_id <> $2
+            ORDER BY m.name`,
+          [cycle.id, req.user.id],
+        )).map((r) => r.name);
+      }
+      groups.push({ ...cycle, roots: tree.roots, confirmer, confirmsFor });
     }
     // Earlier reviews of people the user manages now (read-only, released cycles only).
     const earlier = await many(

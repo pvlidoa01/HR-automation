@@ -697,4 +697,28 @@ if (!dbUrl) {
     await post(hr, setupId, { confirmName: 'C12 setup' });
     assert.equal((await pool.query('SELECT count(*)::int AS n FROM cycles WHERE id = $1', [setupId])).rows[0].n, 1);
   });
+  test('My team explains only the steps that apply; the log says when a level was set by hand', async () => {
+    const cid = await makeCycle('C13 team', [['empQ', 'Q', 'mQ'], ['mQ', 'Q', 'hQ']]);
+    await initiateCycle(cid);
+    // mQ has a second level (hQ); hQ's own reviews complete on submit and hQ confirms mQ's.
+    const mQ = await as('mQ');
+    const mine = (await mQ.get('/team')).text;
+    assert.match(mine, /When you submit, <strong>hQ<\/strong> checks it and confirms it/);
+    assert.doesNotMatch(mine, /you check it, adjust it if needed, and confirm it/);
+    assert.match(mine, /1 review to write/);
+    assert.doesNotMatch(mine, /To write ·/, 'no separate to-do list repeating the names');
+    const hQ = await as('hQ');
+    const head = (await hQ.get('/team')).text;
+    assert.match(head, /When you submit, the review is complete\./);
+    assert.match(head, /When <strong>mQ<\/strong> submits a review for their team, you check it/);
+
+    // Level picked by hand (no checklist), then HR answers the checklist: the log says so.
+    const rid = await reviewId(cid, 'empQ');
+    assert.equal((await postReview(mQ, rid, { action: 'save', ...allRatings(2) })).status, 302);
+    const hr = await as('hr');
+    assert.equal((await postReview(hr, rid, { action: 'save', ...allRatings(2), 'rating[impact]': '1', 'chk[impact][POOR][0]': 'yes', 'rating[quality]': '5' })).status, 302);
+    const fields = (await pool.query('SELECT field FROM change_log WHERE review_id = $1', [rid])).rows.map((r) => r.field);
+    assert.ok(fields.includes('Impact: rating 2 · Basic (set manually) → 1 · Poor, checklist changed') || fields.some((f) => /^Impact: rating 2 · Basic \(set manually\) → 1 · Poor$/.test(f)), JSON.stringify(fields));
+    assert.ok(fields.includes('Quality: rating 2 · Basic (set manually) → 5 · Exceptional (set manually)'), JSON.stringify(fields));
+  });
 }

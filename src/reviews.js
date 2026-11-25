@@ -2,7 +2,7 @@
 import { query, one, many, tx } from './db.js';
 import { DIMENSIONS, STATEMENTS, DIMENSION_INTROS, LEVEL_KEYS, levelLabel } from './shared/framework.js';
 import { computeGrades } from './shared/scoring.js';
-import { hasChecklist } from './shared/checklist.js';
+import { hasChecklist, suggestLevel } from './shared/checklist.js';
 import { canEditNow } from './access.js';
 
 const SKILL_DIMS = { skill1: 'skill1_id', skill2: 'skill2_id', skill3: 'skill3_id' };
@@ -88,7 +88,7 @@ export async function teamTodo(userId) {
       [userId],
     ),
     many(
-      `SELECT r.id, e.name AS employee_name, m.name AS reviewer_name, c.name AS cycle_name, r.submitted_at
+      `SELECT r.id, e.name AS employee_name, m.name AS reviewer_name, c.id AS cycle_id, c.name AS cycle_name, r.submitted_at
          FROM reviews r
          JOIN reviews mr ON mr.cycle_id = r.cycle_id AND mr.employee_id = r.reviewer_id
          JOIN users me ON me.id = mr.reviewer_id AND me.global_role IS DISTINCT FROM 'viewer_all'
@@ -252,7 +252,14 @@ export async function saveReview(user, detail, body, action, role, confirmerId =
       if (logChanges) {
         // One entry per dimension and save: rating, which statements changed, and the feedback.
         const parts = [];
-        if ((u.before.rating ?? null) !== u.rating) parts.push(`rating ${ratingText(u.before.rating)} → ${ratingText(u.rating)}`);
+        if ((u.before.rating ?? null) !== u.rating) {
+          // "(set manually)": a level that is not what the checklist answers suggest (or chosen without them).
+          const manual = (rating, answers) => rating != null && hasChecklist(u.before.statements)
+            && suggestLevel(u.before.statements, answers) !== rating;
+          const from = `${ratingText(u.before.rating)}${manual(u.before.rating, u.before.checklist) ? ' (set manually)' : ''}`;
+          const to = `${ratingText(u.rating)}${manual(u.rating, u.checklist) ? ' (set manually)' : ''}`;
+          parts.push(`rating ${from} → ${to}`);
+        }
         const statementChanges = checklistChanges(u.before.statements, u.before.checklist, u.checklist);
         if (statementChanges.length && !parts.length) parts.push('checklist changed');
         const feedbackChanged = (u.before.feedback || '') !== u.feedback;

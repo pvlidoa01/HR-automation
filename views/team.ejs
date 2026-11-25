@@ -1,40 +1,52 @@
 <%- include('partials/header') %>
-<div class="page-head"><div><h1>My team</h1>
-  <p class="muted">The reviews you are responsible for as a manager. You write your direct reports' reviews; when one of your managers submits a review, you confirm it or adjust it before it is final. Open a person to see who reports to them.</p>
-</div></div>
-<% if (todo.toWrite.length || todo.toConfirm.length) { %>
-  <div class="todo-grid">
-    <% if (todo.toWrite.length) { %>
-      <div class="card">
-        <h3>To write · <%= todo.toWrite.length %></h3>
-        <% if (todo.toWrite[0].deadline) { %><p class="small muted">Due <%= fmtDate(todo.toWrite[0].deadline) %></p><% } %>
-        <ul><% todo.toWrite.forEach(t => { %><li><a href="/reviews/<%= t.id %>"><%= t.employee_name %></a> <span class="muted small">· <%= t.status === 'draft' ? 'in progress' : 'not started' %> · <%= t.cycle_name %></span></li><% }) %></ul>
-      </div>
-    <% } %>
-    <% if (todo.toConfirm.length) { %>
-      <div class="card">
-        <h3>To confirm · <%= todo.toConfirm.length %></h3>
-        <p class="small muted">Your managers submitted these. Read them, adjust if needed, and confirm.</p>
-        <ul><% todo.toConfirm.forEach(t => { %><li><a href="/reviews/<%= t.id %>"><%= t.employee_name %></a> <span class="muted small">· written by <%= t.reviewer_name %> · <%= t.cycle_name %></span></li><% }) %></ul>
-      </div>
-    <% } %>
-  </div>
-<% } else if (groups.some(g => g.status === 'open')) { %>
-  <div class="notice info">Nothing to do right now: all your reviews are submitted.</div>
-<% } %>
-<p class="muted small">HR and the CEO can read and edit every review; the CEO is not an approval step. Use "Discussion and changes" on a review to comment on changes made by others. Employees see theirs only after HR releases the cycle, and never the HR action points.</p>
+<%
+  const list = (names) => names.length <= 1 ? names.join('') : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+%>
+<div class="page-head"><div><h1>My team</h1></div></div>
+
 <% if (!groups.length) { %>
   <div class="card empty">You have no reviews to write.</div>
 <% } %>
-<% groups.forEach(g => { %>
+
+<% groups.forEach(g => {
+     const isOpen = g.status === 'open';
+     const toWrite = todo.toWrite.filter((t) => t.cycle_id === g.id).length;
+     const toConfirm = todo.toConfirm.filter((t) => t.cycle_id === g.id).length; %>
   <h2><%= g.name %> <span class="badge cycle-<%= g.status %>"><%= { open: 'Open', released: 'Released' }[g.status] %></span>
-    <% if (g.deadline && g.status === 'open') { %><span class="muted small">· due <%= fmtDate(g.deadline) %></span><% } %></h2>
+    <% if (g.deadline && isOpen) { %><span class="muted small">· due <%= fmtDate(g.deadline) %></span><% } %></h2>
+
+  <% if (isOpen) { %>
+    <div class="team-howto">
+      <p class="team-todo">
+        <% if (toWrite || toConfirm) { %>
+          <strong>To do:</strong>
+          <%= [toWrite ? `${toWrite} review${toWrite === 1 ? '' : 's'} to write` : '', toConfirm ? `${toConfirm} to confirm` : ''].filter(Boolean).join(' · ') %>
+        <% } else { %>
+          <strong>Nothing to do right now.</strong> All your reviews are submitted.
+        <% } %>
+      </p>
+      <ul class="small">
+        <li>Write a review for each person who reports to you<%= g.deadline ? ` by ${fmtDate(g.deadline)}` : '' %>.</li>
+        <% if (g.confirmer) { %>
+          <li>When you submit, <strong><%= g.confirmer %></strong> checks it and confirms it. Then it's complete.</li>
+        <% } else { %>
+          <li>When you submit, the review is complete.</li>
+        <% } %>
+        <% if (g.confirmsFor.length) { %>
+          <li>When <strong><%= list(g.confirmsFor) %></strong> submit<%= g.confirmsFor.length === 1 ? 's' : '' %> a review for their team, you check it, adjust it if needed, and confirm it.</li>
+        <% } %>
+        <li>HR and the CEO can also edit reviews. Every change shows under "Discussion and changes" on the review.</li>
+      </ul>
+    </div>
+  <% } %>
+
   <div class="card org-tree">
     <% g.roots.forEach(node => { %>
-      <%- include('partials/org-node', { node, mode: 'team', cycleOpen: g.status === 'open', isHrUser: false, STATUS_LABELS, csrfToken, user }) %>
+      <%- include('partials/org-node', { node, mode: 'team', cycleOpen: isOpen, isHrUser: false, STATUS_LABELS, csrfToken, user }) %>
     <% }) %>
   </div>
 <% }) %>
+
 <% if (earlier.length) { %>
   <h2>Earlier reviews of your team</h2>
   <p class="muted small">Reviews written by their previous managers. You can read them but not change them.</p>

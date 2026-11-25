@@ -262,3 +262,7 @@ code { background: var(--surface-2); padding: 1px 5px; border-radius: 4px; }
 .seg-toggle button + button { border-left: 1px solid var(--border); }
 .seg-toggle button.active { background: var(--accent); color: #fff; }
 .seg-toggle .n { opacity: 0.75; margin-left: 2px; }
+.team-howto { margin: 4px 0 12px; }
+.team-howto .team-todo { margin: 0 0 4px; }
+.team-howto ul { margin: 0; padding-left: 18px; color: var(--muted); }
+.team-howto li { margin: 2px 0; }
