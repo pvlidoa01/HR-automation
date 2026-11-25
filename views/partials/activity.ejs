@@ -5,6 +5,12 @@
 <div class="card activity" id="activity">
   <h3>Discussion and changes</h3>
   <p class="small muted">Seen by <%= review.reviewer_name %><%= confirmerName ? `, ${confirmerName}` : '' %>, HR and the CEO. Never by the employee.</p>
+  <% const nMsg = activity.filter((a) => a.kind === 'comment').length; const nChg = activity.length - nMsg; %>
+  <div class="seg-toggle" role="group" aria-label="Show" data-activity-filter>
+    <button type="button" class="active" data-show="all" aria-pressed="true">All <span class="n" data-count="all"><%= activity.length %></span></button>
+    <button type="button" data-show="comment" aria-pressed="false">Messages <span class="n" data-count="comment"><%= nMsg %></span></button>
+    <button type="button" data-show="change" aria-pressed="false">Changes <span class="n" data-count="change"><%= nChg %></span></button>
+  </div>
   <% if (access.canComment) { %>
     <form method="post" action="/reviews/<%= review.id %>/comments" class="activity-form">
       <input type="hidden" name="_csrf" value="<%= csrfToken %>">
@@ -15,14 +21,14 @@
         <span class="small" data-activity-status role="status"></span>
       </div>
     </form>
-    <script type="module" src="/static/js/activity.js"></script>
   <% } %>
+  <p class="small muted" data-filter-empty hidden></p>
   <% if (!activity.length) { %>
     <p class="small muted" data-activity-empty>Nothing yet. Changes made after the manager's first submit, and every change by HR or the CEO, appear here.</p>
   <% } else { %>
     <ul class="activity-list" data-activity-list>
       <% activity.forEach(a => { const isNew = a.user_id !== user.id && (!newSince || new Date(a.at) > new Date(newSince)); %>
-        <li class="<%= a.kind %><%= isNew ? ' is-new' : '' %>">
+        <li class="<%= a.kind %><%= isNew ? ' is-new' : '' %>" data-kind="<%= a.kind %>">
           <div class="activity-head">
             <strong><%= a.user_name || 'System' %></strong>
             <span class="muted small"><%= fmtDateTime(a.at) %></span>
@@ -45,4 +51,5 @@
       <% }) %>
     </ul>
   <% } %>
+  <script type="module" src="/static/js/activity.js"></script>
 </div>

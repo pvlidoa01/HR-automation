@@ -47,9 +47,8 @@ function updateGrades() {
   });
 }
 
-// The rating follows the checklist ("auto") unless someone picked a different level by hand.
-// This also holds for a review opened again later, e.g. by the second level, HR or the CEO:
-// a saved rating that matches the saved checklist keeps following it when statements change.
+// The rating follows the checklist: every change to an answer sets it to the suggested level.
+// Someone can still pick another level by hand; the suggestion line then offers to switch back.
 function updateSuggestion(section, fromChecklist) {
   const key = section.dataset.dim;
   const statements = data.statements[key];
@@ -61,7 +60,9 @@ function updateSuggestion(section, fromChecklist) {
     out.textContent = 'Answer the statements to get a suggested level.';
     return;
   }
-  if (fromChecklist && select && (select.value === '' || select.dataset.auto === '1')) {
+  // Changing an answer always moves the rating to the new suggestion, whoever is editing and
+  // even if a level was picked by hand before. A level picked by hand afterwards is kept.
+  if (fromChecklist && select) {
     select.value = String(level);
     select.dataset.auto = '1';
   }

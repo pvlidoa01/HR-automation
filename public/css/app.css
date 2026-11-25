@@ -256,3 +256,9 @@ code { background: var(--surface-2); padding: 1px 5px; border-radius: 4px; }
 .sync-level li.removed { color: #8a2a1f; text-decoration: line-through; }
 [data-activity-status].err { color: var(--bad); }
 .activity-details { margin: 4px 0 0; padding-left: 18px; color: var(--text, inherit); overflow-wrap: anywhere; }
+.activity-details li { border: 0 !important; padding: 0 !important; }
+.seg-toggle { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin: 8px 0 4px; }
+.seg-toggle button { border: 0; background: transparent; padding: 4px 10px; font: inherit; font-size: 0.8rem; color: var(--muted); cursor: pointer; }
+.seg-toggle button + button { border-left: 1px solid var(--border); }
+.seg-toggle button.active { background: var(--accent); color: #fff; }
+.seg-toggle .n { opacity: 0.75; margin-left: 2px; }
