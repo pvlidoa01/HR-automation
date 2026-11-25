@@ -24,6 +24,7 @@
       <strong><%= node.name %></strong>
       <% if (r) { %>
         <span class="muted small"><%= r.position %> · <%= r.department %> · <%= r.seniority %></span>
+        <% if (locals.showWriter) { %><span class="muted small">Written by <%= r.reviewer_name %><%= r.submitted_at ? ` · submitted ${fmtDate(r.submitted_at)}` : '' %></span><% } %>
       <% } else { %>
         <span class="muted small"><%= node.email %> · not reviewed in this cycle</span>
       <% } %>

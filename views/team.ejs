@@ -40,11 +40,33 @@
     </div>
   <% } %>
 
-  <div class="card org-tree">
-    <% g.roots.forEach(node => { %>
-      <%- include('partials/org-node', { node, mode: 'team', cycleOpen: isOpen, isHrUser: false, STATUS_LABELS, csrfToken, user }) %>
-    <% }) %>
-  </div>
+  <%
+    // Reviews written by this person's managers and waiting for them to confirm, found anywhere in the branch.
+    const waiting = [];
+    const walk = (nodes) => nodes.forEach((n) => {
+      if (n.review && n.review.status === 'submitted' && n.review.confirmerId === user.id) waiting.push(n);
+      walk(n.children || []);
+    });
+    if (isOpen) walk(g.roots);
+  %>
+  <section class="team-section team-write">
+    <span class="team-tag">To write<%= isOpen && toWrite ? ` · ${toWrite} left` : '' %></span>
+    <div class="card org-tree">
+      <% g.roots.forEach(node => { %>
+        <%- include('partials/org-node', { node, mode: 'team', cycleOpen: isOpen, isHrUser: false, STATUS_LABELS, csrfToken, user }) %>
+      <% }) %>
+    </div>
+  </section>
+  <% if (waiting.length) { %>
+    <section class="team-section team-confirm">
+      <span class="team-tag">To confirm · <%= waiting.length %></span>
+      <div class="card org-tree">
+        <% waiting.forEach(node => { %>
+          <%- include('partials/org-node', { node: { ...node, direct: 0, children: [] }, mode: 'team', cycleOpen: isOpen, isHrUser: false, STATUS_LABELS, csrfToken, user, showWriter: true }) %>
+        <% }) %>
+      </div>
+    </section>
+  <% } %>
 <% }) %>
 
 <% if (earlier.length) { %>

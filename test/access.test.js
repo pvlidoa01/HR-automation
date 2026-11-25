@@ -706,7 +706,7 @@ if (!dbUrl) {
     assert.match(mine, /When you submit, <strong>hQ<\/strong> checks it and confirms it/);
     assert.doesNotMatch(mine, /you check it, adjust it if needed, and confirm it/);
     assert.match(mine, /1 review to write/);
-    assert.doesNotMatch(mine, /To write ·/, 'no separate to-do list repeating the names');
+    assert.match(mine, /To write · 1 left/);
     const hQ = await as('hQ');
     const head = (await hQ.get('/team')).text;
     assert.match(head, /When you submit, the review is complete\./);
@@ -720,5 +720,13 @@ if (!dbUrl) {
     const fields = (await pool.query('SELECT field FROM change_log WHERE review_id = $1', [rid])).rows.map((r) => r.field);
     assert.ok(fields.includes('Impact: rating 2 · Basic (set manually) → 1 · Poor, checklist changed') || fields.some((f) => /^Impact: rating 2 · Basic \(set manually\) → 1 · Poor$/.test(f)), JSON.stringify(fields));
     assert.ok(fields.includes('Quality: rating 2 · Basic (set manually) → 5 · Exceptional (set manually)'), JSON.stringify(fields));
+
+    // Once mQ submits, hQ sees it in a separate "To confirm" box, without opening mQ's branch.
+    assert.doesNotMatch((await hQ.get('/team')).text, /To confirm ·/);
+    assert.equal((await postReview(mQ, rid, { action: 'submit', ...allRatings(3) })).status, 302);
+    const after = (await hQ.get('/team')).text;
+    assert.match(after, /To confirm · 1/);
+    assert.match(after, /Written by mQ · submitted/);
+    assert.match(after, /Review and confirm/);
   });
 }

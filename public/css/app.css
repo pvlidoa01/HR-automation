@@ -266,3 +266,10 @@ code { background: var(--surface-2); padding: 1px 5px; border-radius: 4px; }
 .team-howto .team-todo { margin: 0 0 4px; }
 .team-howto ul { margin: 0; padding-left: 18px; color: var(--muted); }
 .team-howto li { margin: 2px 0; }
+.team-section { position: relative; margin: 18px 0 8px; }
+.team-section > .card { border-width: 2px; padding-top: 18px; }
+.team-write > .card { border-color: var(--accent); }
+.team-confirm > .card { border-color: #e0a020; }
+.team-tag { position: absolute; top: -11px; left: 14px; z-index: 1; font-size: 0.75rem; font-weight: 700; padding: 2px 10px; border-radius: 999px; color: #fff; }
+.team-write .team-tag { background: var(--accent); }
+.team-confirm .team-tag { background: #c27c00; }
