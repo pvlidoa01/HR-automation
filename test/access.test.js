@@ -702,6 +702,13 @@ if (!dbUrl) {
     await initiateCycle(cid);
     // mQ has a second level (hQ); hQ's own reviews complete on submit and hQ confirms mQ's.
     const mQ = await as('mQ');
+    // Home is the team page for managers (no separate My team tab); people with no one to review go to My reviews.
+    const homePage = await mQ.get('/');
+    assert.equal(homePage.status, 200);
+    assert.match(homePage.text, /Hello mQ/);
+    assert.match(homePage.text, /To write ·/);
+    assert.doesNotMatch(homePage.text, /href="\/team"/);
+    assert.equal((await (await as('empQ')).get('/')).headers.location, '/me');
     const mine = (await mQ.get('/team')).text;
     assert.match(mine, /When you submit, <strong>hQ<\/strong> checks it and confirms it/);
     assert.doesNotMatch(mine, /you check it, adjust it if needed, and confirm it/);

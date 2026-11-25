@@ -2,7 +2,7 @@
 <%
   const list = (names) => names.length <= 1 ? names.join('') : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
 %>
-<div class="page-head"><div><h1>My team</h1></div></div>
+<div class="page-head"><div><h1><%= asHome ? `Hello ${user.name.split(' ')[0]}` : 'My team' %></h1></div></div>
 
 <% if (!groups.length) { %>
   <div class="card empty">You have no reviews to write.</div>

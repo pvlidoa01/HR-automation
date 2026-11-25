@@ -1,6 +1,6 @@
 import express from 'express';
 import { query, one } from '../db.js';
-import { loadReviewWithAccess, parseId } from '../access.js';
+import { loadReviewWithAccess, parseId, seesEverything } from '../access.js';
 import { getReviewDetail, getActivity, addComment, markSeen, saveReview, versionOf, STATUS_LABELS } from '../reviews.js';
 import { flash } from '../app.js';
 import { requestChange } from '../cycles.js';
@@ -132,7 +132,7 @@ export function reviewRoutes() {
     if (!id) return notFound(res);
     const { access } = await loadReviewWithAccess(req.user, id);
     if (!access.canView) return notFound(res);
-    const back = String(req.body?.back || '') === 'team' ? '/team' : `/reviews/${id}`;
+    const back = String(req.body?.back || '') === 'team' ? (seesEverything(req.user) ? '/team' : '/') : `/reviews/${id}`;
     if (!access.canRequestChange) {
       flash(req, 'error', 'You cannot ask to reopen this review.');
       return res.redirect(back);

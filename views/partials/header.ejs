@@ -12,11 +12,12 @@
 <% } %>
 <header class="topbar">
   <div class="topbar-inner">
-    <a class="brand" href="<%= locals.nav && nav.dashboard ? '/dashboard' : '/' %>">R3 <span>Performance Review</span></a>
+    <a class="brand" href="<%= locals.nav && nav.dashboard ? '/dashboard' : (locals.nav && nav.team ? '/' : '/me') %>">R3 <span>Performance Review</span></a>
     <% if (user) { const nav = locals.nav || {}; %>
       <nav class="nav">
-        <% if (!nav.dashboard) { %><a href="/" class="<%= path === '/' ? 'active' : '' %>">Home</a><% } %>
-        <% if (nav.team) { %><a href="/team" class="<%= path === '/team' ? 'active' : '' %>">My team<% if (nav.teamTodo) { %> <span class="count" title="Reviews to write or confirm"><%= nav.teamTodo %></span><% } %></a><% } %>
+        <% const todoBadge = nav.teamTodo ? `<span class="count" title="Reviews to write or confirm">${nav.teamTodo}</span>` : ''; %>
+        <% if (!nav.dashboard && nav.team) { %><a href="/" class="<%= path === '/' || path === '/team' ? 'active' : '' %>">Home <%- todoBadge %></a><% } %>
+        <% if (nav.dashboard && nav.team) { %><a href="/team" class="<%= path === '/team' ? 'active' : '' %>">My team <%- todoBadge %></a><% } %>
         <% if (nav.dashboard) { %><a href="/dashboard" class="<%= path === '/dashboard' || path.startsWith('/cycles') ? 'active' : '' %>"><%= nav.hr ? 'HR dashboard' : 'Dashboard' %></a><% } %>
         <% if (nav.hr) { %><a href="/hr" class="<%= path.startsWith('/hr') ? 'active' : '' %>">HR admin<% if (nav.requests) { %> <span class="count" title="Requests to reopen waiting for you"><%= nav.requests %></span><% } %></a><% } %>
         <a href="/me" class="<%= path === '/me' ? 'active' : '' %>">My reviews</a>

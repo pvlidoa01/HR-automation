@@ -23,7 +23,7 @@
     <% if (r.cycle_status === 'released') { %><span class="badge cycle-released">Released</span><% } %>
   </div>
   <div class="btn-row">
-    <% if (access.role === 'reviewer' || access.role === 'confirmer') { %><a class="btn" href="/team">Back to my team</a><% } %>
+    <% if (access.role === 'reviewer' || access.role === 'confirmer') { %><a class="btn" href="<%= locals.nav && nav.dashboard ? '/team' : '/' %>"><%= locals.nav && nav.dashboard ? 'Back to my team' : 'Back to Home' %></a><% } %>
     <% if (access.role === 'hr' || access.role === 'ceo') { %><a class="btn" href="/cycles/<%= r.cycle_id %>">Back to cycle</a><% } %>
   </div>
 </div>

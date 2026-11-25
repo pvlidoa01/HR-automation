@@ -19,25 +19,12 @@ function groupByCycle(rows) {
 export function homeRoutes() {
   const router = express.Router();
 
+  // Home. HR and the CEO start on the dashboard. Everyone who writes or confirms reviews lands on
+  // their team page (Home); people with no one to review go straight to their own reviews.
   router.get('/', async (req, res) => {
-    const me = req.user;
-    // HR and the CEO start on the dashboard; their own manager work is under My team.
-    if (seesEverything(me)) return res.redirect('/dashboard');
-    const [mine, team, todo] = await Promise.all([
-      many(`SELECT r.id, c.name AS cycle_name, r.employee_read_at FROM reviews r JOIN cycles c ON c.id = r.cycle_id
-             WHERE r.employee_id = $1 AND c.status = 'released' ORDER BY c.released_at DESC`, [me.id]),
-      many(`SELECT r.status, c.id AS cycle_id, c.name AS cycle_name, c.status AS cycle_status, c.deadline
-              FROM reviews r JOIN cycles c ON c.id = r.cycle_id
-             WHERE r.reviewer_id = $1 AND c.status = 'open'`, [me.id]),
-      teamTodo(me.id),
-    ]);
-    const openTeam = groupByCycle(team.map((t) => ({ ...t })));
-    for (const g of openTeam) {
-      g.todo = g.reviews.filter((r) => ['not_started', 'draft'].includes(r.status)).length;
-      g.total = g.reviews.length;
-    }
-    const hasTeamHistory = !!(await one('SELECT 1 FROM reviews r JOIN cycles c ON c.id = r.cycle_id WHERE r.reviewer_id = $1 AND c.status <> \'setup\' LIMIT 1', [me.id]));
-    res.render('home', { title: 'Home', mine, openTeam, hasTeamHistory, toConfirm: todo.toConfirm, openRequests: 0, cycles: [] });
+    if (seesEverything(req.user)) return res.redirect('/dashboard');
+    if (!res.locals.nav?.team) return res.redirect('/me');
+    return renderTeam(req, res);
   });
 
   // HR / CEO dashboard: opens the most recent open cycle (or the latest released one).
@@ -56,8 +43,11 @@ export function homeRoutes() {
     res.render('me', { title: 'My reviews', rows });
   });
 
-  // My team: my branch of the organisation tree, for every cycle I review in.
-  router.get('/team', async (req, res) => {
+  // My team (the same page as Home for managers; "My team" for HR and the CEO).
+  router.get('/team', (req, res) => renderTeam(req, res));
+
+  // My branch of the organisation tree, for every cycle I review in.
+  async function renderTeam(req, res) {
     const cycles = await many(
       `SELECT DISTINCT c.* FROM cycles c JOIN reviews r ON r.cycle_id = c.id
         WHERE r.reviewer_id = $1 AND c.status <> 'setup' ORDER BY c.created_at DESC`,
@@ -99,8 +89,9 @@ export function homeRoutes() {
       [req.user.id],
     );
     const todo = await teamTodo(req.user.id);
-    res.render('team', { title: 'My team', groups, earlier, todo, STATUS_LABELS });
-  });
+    const asHome = !seesEverything(req.user);
+    res.render('team', { title: asHome ? 'Home' : 'My team', asHome, groups, earlier, todo, STATUS_LABELS });
+  }
 
   // Cycle overview for HR and the CEO.
   router.get('/cycles/:id', async (req, res) => {
