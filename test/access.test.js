@@ -721,6 +721,11 @@ if (!dbUrl) {
 
     // Level picked by hand (no checklist), then HR answers the checklist: the log says so.
     const rid = await reviewId(cid, 'empQ');
+    // The guide on the review page is specific to this employee and manager.
+    const guide = (await mQ.get(`/reviews/${rid}`)).text;
+    assert.match(guide, /the three skills of empQ's role: Problem Solving, Project Management, Procurement/);
+    assert.match(guide, /expected for a Mid/);
+    assert.match(guide, /After you submit, <strong>hQ<\/strong> checks the review/);
     assert.equal((await postReview(mQ, rid, { action: 'save', ...allRatings(2) })).status, 302);
     const hr = await as('hr');
     assert.equal((await postReview(hr, rid, { action: 'save', ...allRatings(2), 'rating[impact]': '1', 'chk[impact][POOR][0]': 'yes', 'rating[quality]': '5' })).status, 302);

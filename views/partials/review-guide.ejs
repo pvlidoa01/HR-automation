@@ -1,0 +1,53 @@
+<%#
+  "How this review works": shown above the form to whoever is filling it in.
+  Locals: r (review), dimensions, access, confirmerName
+%>
+<%
+  const skillNames = dimensions.filter((d) => d.category === 'skills').map((d) => d.label);
+  const firstTime = access.role === 'reviewer' && r.status === 'not_started';
+%>
+<details class="card review-guide" <%= firstTime ? 'open' : '' %>>
+  <summary><strong>How this review works</strong> <span class="muted small">· read once before you start</span></summary>
+  <div class="review-guide-body small">
+    <h4>1. Nine dimensions, in three groups of three</h4>
+    <ul>
+      <li><strong>Culture</strong>: Radical Transparency, Impact, Everyone's an owner.</li>
+      <li><strong>Deliverables</strong>: Complexity, Quality, Speed.</li>
+      <li><strong>Skills</strong>: the three skills of <%= r.employee_name.split(' ')[0] %>'s role<%= skillNames.length ? `: ${skillNames.join(', ')}` : '' %>.</li>
+    </ul>
+
+    <h4>2. For each dimension, answer the checklist</h4>
+    <ul>
+      <li>Go through the statements <strong>top to bottom</strong> and answer each one <strong>Yes or No</strong>. Start with "Poor": these are behaviours you don't want to see, so they should normally be No.</li>
+      <li>The <strong>level adjusts automatically</strong> to your answers, from 1 · Poor to 5 · Exceptional.</li>
+      <li>Next to each level you see the <strong>Talent Bar</strong>: the level expected for a <%= r.seniority %> in that dimension. It differs by seniority and by dimension, and it's there for reference only. Rate what you observed, not the bar. The small badge (+1, 0, −1) shows how far the level is from the bar.</li>
+      <li>Write <strong>feedback for the employee</strong> under each dimension: what you observed, and what they should keep doing or change.</li>
+    </ul>
+
+    <h4>3. Grades are calculated for you</h4>
+    <ul>
+      <li>Each group (Culture, Deliverables, Skills) gets a grade from its three levels compared with the bar: <strong>Values Concern</strong> if any level is 1 · Poor; <strong>Underperformer</strong> if any level is below the bar; <strong>A-Player</strong> if all three are at least one level above the bar; otherwise <strong>Above the Bar</strong>.</li>
+      <li>The three group grades then give the <strong>overall grade</strong>: Values Concern if any group has it; A-Player if at least two groups are A-Player; Underperformer if any group is; otherwise Above the Bar.</li>
+      <li><strong>The only thing you decide is the level of each dimension</strong>; the grades update as you go (panel on the right).</li>
+    </ul>
+
+    <h4>4. Action plan and HR points</h4>
+    <ul>
+      <li><strong>Action plan</strong>: the agreed next steps for the employee. They see it after release.</li>
+      <li><strong>HR action points</strong>: salary, equity or promotion notes for HR. <strong>The employee never sees these.</strong></li>
+    </ul>
+
+    <h4>5. Saving, submitting and afterwards</h4>
+    <ul>
+      <li><strong>Save draft</strong> at any time and finish later. <strong>Submit</strong> once all nine levels are set.</li>
+      <% if (access.role === 'reviewer') { %>
+        <li><%- confirmerName ? `After you submit, <strong>${confirmerName}</strong> checks the review, can adjust it, and confirms it. Then it's complete.` : 'When you submit, the review is complete.' %> HR and the CEO can also make changes until HR releases the cycle.</li>
+        <li>You always see the latest version. In <strong>Discussion and changes</strong> (on the right) you see every change made by others, and you can add messages, for example if you disagree with a change.</li>
+        <li>Need to change something after submitting? Use <strong>Ask HR to reopen</strong> and explain clearly what and why. HR decides.</li>
+      <% } else { %>
+        <li>Every change you make is logged and visible to the people involved in <strong>Discussion and changes</strong> (on the right), where you can also add messages.</li>
+      <% } %>
+      <li>The employee sees the review only after <strong>HR releases the whole cycle</strong>, and never sees the HR action points or the discussion.</li>
+    </ul>
+  </div>
+</details>

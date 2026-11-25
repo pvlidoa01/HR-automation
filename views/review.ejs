@@ -72,7 +72,7 @@
       <form method="post" action="/reviews/<%= r.id %>" id="review-form" novalidate>
       <input type="hidden" name="_csrf" value="<%= csrfToken %>">
       <input type="hidden" name="version" value="<%= version %>">
-      <p class="small muted">For each dimension, go through the checklist top to bottom: it suggests a level, which you can change. Then write feedback for the employee. The Talent Bar shows the level expected for a <%= r.seniority %>.</p>
+      <%- include('partials/review-guide', { r, dimensions, access, confirmerName }) %>
     <% } %>
 
     <% ['culture', 'deliverables', 'skills'].forEach(area => { %>

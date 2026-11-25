@@ -273,3 +273,8 @@ code { background: var(--surface-2); padding: 1px 5px; border-radius: 4px; }
 .team-tag { position: absolute; top: -11px; left: 14px; z-index: 1; font-size: 0.75rem; font-weight: 700; padding: 2px 10px; border-radius: 999px; color: #fff; }
 .team-write .team-tag { background: var(--accent); }
 .team-confirm .team-tag { background: #c27c00; }
+.review-guide { margin-bottom: 16px; }
+.review-guide > summary { cursor: pointer; }
+.review-guide-body h4 { margin: 14px 0 4px; font-size: 0.9rem; }
+.review-guide-body ul { margin: 0; padding-left: 18px; }
+.review-guide-body li { margin: 3px 0; line-height: 1.45; }
