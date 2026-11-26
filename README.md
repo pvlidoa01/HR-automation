@@ -96,6 +96,8 @@ The rules live in `src/access.js` and are covered by `test/access.test.js`.
 - Checklist suggestion (Daria, 26 Nov): Poor if any Poor behaviour applies. Then go from Basic up and stop
   at the first No: if it's the first statement of a level, the level below (first Basic No → Poor); if
   it's a later statement, that level. All Yes → Exceptional.
+- Grade rules confirmed by Daria on 26 Nov (the Excel formulas are the guiding principle). Radical
+  Transparency's "Expert" statement from Notion is part of Exceptional.
 
 Code: `src/shared/scoring.js`, `src/shared/checklist.js` (also used in the browser).
 Skill behaviour statements come from the Notion Skill Base (`src/seed/skills.json`).

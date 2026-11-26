@@ -68,7 +68,8 @@ function barFromColumns(cols) {
 export const TALENT_BAR = barFromColumns(EXCEL_BAR);
 
 // Behaviour statements per level for culture values and deliverables.
-// Radical Transparency's extra "Expert" level from Notion is not used (the scale is 1-5).
+// Radical Transparency's extra "Expert" level from Notion is merged into Exceptional (Daria, 26 Nov):
+// the scale is 1-5. Added as the last statement, so answers already given keep their positions.
 export const STATEMENTS = {
   radical_transparency: {
     POOR: [
@@ -94,6 +95,7 @@ export const STATEMENTS = {
     ],
     EXCEPTIONAL: [
       "Act as a role model via one's transparent behaviour, communication, and mentoring",
+      'Able to build bridges across the entire company with vulnerable, honest, and trustworthy communication',
     ],
   },
   impact: {
