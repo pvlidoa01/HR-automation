@@ -40,11 +40,16 @@ test('grades match the H1 2026 Excel when using the Excel talent bar', () => {
   }
 });
 
-test('Notion talent bar changes employee 1 culture from A-Player to Above the Bar', () => {
-  const g = computeGrades(toRatings(sample[0].r), 'Mid', TALENT_BAR);
-  assert.equal(g.areas.culture, 'ABOVE_BAR');
-  assert.equal(g.dimensions.impact.expected, 3);
-  assert.equal(g.dimensions.radical_transparency.expected, 2);
+test('the app uses the Excel talent bar (Radical Transparency is the first cultural value)', () => {
+  assert.deepEqual(TALENT_BAR, excelBar());
+  for (const row of sample) {
+    const g = computeGrades(toRatings(row.r), row.seniority);
+    assert.equal(g.overall, row.overall);
+  }
+  assert.equal(TALENT_BAR.Mid.radical_transparency, 3);
+  assert.equal(TALENT_BAR.Mid.impact, 2);
+  assert.equal(TALENT_BAR.Lead.radical_transparency, 4);
+  assert.equal(TALENT_BAR.Lead.impact, 3);
 });
 
 test('any 1 gives Values Concern, overall Values Concern wins', () => {
@@ -81,30 +86,42 @@ const S = {
   EXCEPTIONAL: ['e0'],
 };
 
+const NO_POOR = { 0: 'no', 1: 'no' };
+
 test('checklist: any Poor yes gives Poor', () => {
   assert.equal(suggestLevel(S, { POOR: { 1: 'yes' }, BASIC: { 0: 'yes', 1: 'yes' } }), 1);
 });
 
-test('checklist: all Basic no gives Poor', () => {
-  assert.equal(suggestLevel(S, { POOR: { 0: 'no', 1: 'no' }, BASIC: { 0: 'no', 1: 'no' } }), 1);
+test('checklist: first Basic statement No gives Poor, even if a later one is Yes', () => {
+  assert.equal(suggestLevel(S, { POOR: NO_POOR, BASIC: { 0: 'no', 1: 'yes' } }), 1);
 });
 
-test('checklist: some Basic yes and no Poor gives Basic', () => {
-  assert.equal(suggestLevel(S, { POOR: { 0: 'no', 1: 'no' }, BASIC: { 0: 'no', 1: 'yes' } }), 2);
+test('checklist: a later Basic statement No gives Basic', () => {
+  assert.equal(suggestLevel(S, { POOR: NO_POOR, BASIC: { 0: 'yes', 1: 'no' } }), 2);
 });
 
-test('checklist: level counts only when every statement is yes', () => {
-  const answers = { POOR: { 0: 'no', 1: 'no' }, BASIC: { 0: 'yes', 1: 'yes' }, INTERMEDIATE: { 0: 'yes', 1: 'no' } };
+test('checklist: first statement of a level No -> level below; a later one No -> that level', () => {
+  const answers = { POOR: NO_POOR, BASIC: { 0: 'yes', 1: 'yes' }, INTERMEDIATE: { 0: 'no', 1: 'yes' } };
   assert.equal(suggestLevel(S, answers), 2);
-  answers.INTERMEDIATE[1] = 'yes';
+  answers.INTERMEDIATE = { 0: 'yes', 1: 'no' };
   assert.equal(suggestLevel(S, answers), 3);
+  answers.INTERMEDIATE = { 0: 'yes', 1: 'yes' };
   answers.ADVANCED = { 0: 'yes' };
   answers.EXCEPTIONAL = { 0: 'no' };
   assert.equal(suggestLevel(S, answers), 4);
+  answers.EXCEPTIONAL = { 0: 'yes' };
+  assert.equal(suggestLevel(S, answers), 5);
 });
 
-test('checklist: nothing answered gives no suggestion', () => {
+test('checklist: the first No stops it, answers further down do not count', () => {
+  const answers = { POOR: NO_POOR, BASIC: { 0: 'yes', 1: 'no' }, INTERMEDIATE: { 0: 'yes', 1: 'yes' }, ADVANCED: { 0: 'yes' } };
+  assert.equal(suggestLevel(S, answers), 2);
+});
+
+test('checklist: nothing answered (or only Poor) gives no suggestion; half-way gives the level so far', () => {
   assert.equal(suggestLevel(S, {}), null);
+  assert.equal(suggestLevel(S, { POOR: NO_POOR }), null);
+  assert.equal(suggestLevel(S, { POOR: NO_POOR, BASIC: { 0: 'yes', 1: 'yes' } }), 2);
 });
 
 import { parseTypedDate } from '../src/dates.js';

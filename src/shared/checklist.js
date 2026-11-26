@@ -1,7 +1,11 @@
-// Suggests a level from the behaviour checklist (Notion help sheet + decisions):
-//   - Poor if ANY Poor behaviour is answered Yes, or if EVERY Basic statement is answered No.
-//   - Otherwise start at Basic and move up one level at a time while every statement
-//     in the next level is answered Yes. The first level that is not fully Yes stops it.
+// Suggests a level from the behaviour checklist. Rule confirmed by Daria (HR), 26 Nov 2026:
+//   - Any Poor behaviour answered Yes -> Poor.
+//   - Then go through the levels from Basic up, statement by statement, and stop at the first No:
+//       the FIRST statement of a level is No  -> the level below (first Basic statement No -> Poor);
+//       a LATER statement of a level is No    -> that level.
+//     Every statement Yes up to the top -> Exceptional.
+//   - An unanswered statement stops the walk too: the suggestion is the level reached so far
+//     (none yet if the first Basic statement is unanswered).
 // The manager can always change the suggested rating.
 
 import { LEVEL_KEYS } from './framework.js';
@@ -19,24 +23,20 @@ export function suggestLevel(statements, answers) {
   const answerOf = (level, i) => (a[level] ? a[level][i] ?? a[level][String(i)] : undefined);
   const list = (level) => statements[level] || [];
 
-  const poor = list('POOR');
-  if (poor.some((_, i) => answerOf('POOR', i) === 'yes')) return 1;
-
-  const basic = list('BASIC');
-  if (basic.length && basic.every((_, i) => answerOf('BASIC', i) === 'no')) return 1;
-
+  if (list('POOR').some((_, i) => answerOf('POOR', i) === 'yes')) return 1;
   const anyAnswered = LEVEL_KEYS.some((lvl) => list(lvl).some((_, i) => answerOf(lvl, i) != null));
   if (!anyAnswered) return null;
 
-  // Basic is the floor once no Poor behaviour applies and Basic isn't all No.
-  let level = 2;
-  const basicAllYes = basic.length > 0 && basic.every((_, i) => answerOf('BASIC', i) === 'yes');
-  if (!basicAllYes) return level;
-  for (const lvl of ['INTERMEDIATE', 'ADVANCED', 'EXCEPTIONAL']) {
+  let level = 1;
+  for (const lvl of ['BASIC', 'INTERMEDIATE', 'ADVANCED', 'EXCEPTIONAL']) {
     const items = list(lvl);
-    if (!items.length) break;
-    if (items.every((_, i) => answerOf(lvl, i) === 'yes')) level = VALUE[lvl];
-    else break;
+    if (!items.length) continue; // a skill without statements at this level
+    const first = answerOf(lvl, 0);
+    if (first !== 'yes') return first == null && level === 1 ? null : level;
+    level = VALUE[lvl];
+    for (let i = 1; i < items.length; i += 1) {
+      if (answerOf(lvl, i) !== 'yes') return level;
+    }
   }
   return level;
 }

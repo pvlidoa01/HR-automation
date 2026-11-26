@@ -86,14 +86,16 @@ The rules live in `src/access.js` and are covered by `test/access.test.js`.
 ## Scoring rules
 
 - Scale 1–5: Poor, Basic, Intermediate, Advanced, Exceptional.
-- Talent Bar: the Notion version (`src/shared/framework.js`). Each cycle stores the bar it used, so later
-  changes don't rewrite history.
+- Talent Bar: the H1 2026 Excel version (`src/shared/framework.js`); where the Excel and Notion differ, the
+  Excel is the source of truth (Daria, 26 Nov). Radical Transparency is the first cultural value. Each
+  cycle stores the bar it used, so later changes don't rewrite history.
 - Per area (Culture, Deliverables, Skills): any 1 → Values Concern; any rating below the bar →
   Underperformer; every rating at least 1 above the bar → A-Player; otherwise Above the Bar.
 - Overall: any Values Concern → Values Concern; 2+ areas A-Player → A-Player; any Underperformer →
   Underperformer; otherwise Above the Bar. (Same as the H1 2026 Excel formulas.)
-- Checklist suggestion: Poor if any Poor behaviour applies or every Basic statement is No; otherwise the
-  highest level where every statement is Yes (Basic at least).
+- Checklist suggestion (Daria, 26 Nov): Poor if any Poor behaviour applies. Then go from Basic up and stop
+  at the first No: if it's the first statement of a level, the level below (first Basic No → Poor); if
+  it's a later statement, that level. All Yes → Exceptional.
 
 Code: `src/shared/scoring.js`, `src/shared/checklist.js` (also used in the browser).
 Skill behaviour statements come from the Notion Skill Base (`src/seed/skills.json`).

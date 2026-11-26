@@ -40,38 +40,32 @@ export const DIMENSIONS = [
 
 export const DIMENSION_KEYS = DIMENSIONS.map((d) => d.key);
 
-// Talent Bar from the Notion help sheet (decided: Notion wins over the Excel).
-// Values are levels 1-5. Complexity, Quality and Speed all use the Deliverables column.
+// Talent Bar from the H1 2026 review Excel ("Talent Bar" sheet).
+// Decided 26 Nov 2026 (Daria): the Excel is the source of truth where it and Notion differ.
+// The only difference: the "first among equals" cultural value, held one level higher for Mid
+// and Lead, is Radical Transparency (Excel), not Impact (Notion table).
+// Values are levels 1-5.
 const B = 2, I = 3, A = 4, E = 5;
-const NOTION_BAR = {
-  //          impact owner  RT  deliv  s1  s2  s3
-  Junior: [B, B, B, B, B, B, B],
-  Mid: [I, B, B, B, I, I, I],
-  Senior: [I, I, I, I, A, I, I],
-  Lead: [A, I, I, A, A, A, I],
-  Head: [A, A, A, E, E, A, A],
-  VP: [E, E, E, E, E, E, E],
+const EXCEL_BAR = {
+  //          RT impact owner complexity quality speed  s1  s2  s3
+  Junior: [B, B, B, B, B, B, B, B, B],
+  Mid: [I, B, B, B, B, B, I, I, I],
+  Senior: [I, I, I, I, I, I, A, I, I],
+  Lead: [A, I, I, A, A, A, A, A, I],
+  Head: [A, A, A, E, E, E, E, A, A],
+  VP: [E, E, E, E, E, E, E, E, E],
 };
 
 function barFromColumns(cols) {
+  const keys = ['radical_transparency', 'impact', 'ownership', 'complexity', 'quality', 'speed', 'skill1', 'skill2', 'skill3'];
   const out = {};
-  for (const [seniority, [impact, owner, rt, deliv, s1, s2, s3]] of Object.entries(cols)) {
-    out[seniority] = {
-      radical_transparency: rt,
-      impact,
-      ownership: owner,
-      complexity: deliv,
-      quality: deliv,
-      speed: deliv,
-      skill1: s1,
-      skill2: s2,
-      skill3: s3,
-    };
+  for (const [seniority, values] of Object.entries(cols)) {
+    out[seniority] = Object.fromEntries(keys.map((k, i) => [k, values[i]]));
   }
   return out;
 }
 
-export const TALENT_BAR = barFromColumns(NOTION_BAR);
+export const TALENT_BAR = barFromColumns(EXCEL_BAR);
 
 // Behaviour statements per level for culture values and deliverables.
 // Radical Transparency's extra "Expert" level from Notion is not used (the scale is 1-5).
